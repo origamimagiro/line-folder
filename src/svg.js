@@ -45,6 +45,9 @@ export const SVG = {   // DRAWING
             if (options.id != undefined) {
                 el.setAttribute("id", `${options.id}${i}`);
             }
+            if (options.opacity != undefined) {
+                el.setAttribute("opacity", options.opacity);
+            }
             if (options.text) {
                 SVG.draw_label(g, [x, y], color, i);
             }

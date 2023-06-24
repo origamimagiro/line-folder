@@ -137,34 +137,47 @@ const MAIN = {
             id: "fold_s_edge", stroke: GUI.COLORS.edge.B,
             filter: (i) => SD[i] == "B"});
         const Lsvg = SVG.append("g", svg, {id: "lines"});
+        const [R1, R2] = [5, 10];
+        const [O1, O2] = [0.01, 1];
         SVG.draw_points(svg, Q, {
-            id: "fold_p", fill: GUI.COLORS.line.N, r: 5,
-            filter: (i) => visible[i],
+            id: "fold_p", fill: GUI.COLORS.line.N, r: R1,
+            filter: (i) => visible[i], opacity: O1,
         });
-        const clicked = [];
+        const clicked = new Map();
         for (let i = 0; i < Q.length; ++i) {
             const el = document.getElementById(`fold_p${i}`);
             if (el != undefined) {
+                el.onmouseover = () => {
+                    el.setAttribute("r", R2);
+                    el.setAttribute("opacity", O2);
+                };
+                el.onmouseout = () => {
+                    el.setAttribute("r", R1);
+                    el.setAttribute("opacity", (clicked.get(i) == undefined)
+                        ? O1
+                        : O2
+                    );
+                };
                 el.onclick = () => {
                     NOTE.time(`Clicked point ${i}`);
-                    const seen = new Set(clicked.map(([i, el]) => i));
-                    if (seen.has(i) || (clicked.length >= 5)) {
+                    if (clicked.has(i) || (clicked.size > 2)) {
                         NOTE.time(`Emptying clicked set`);
                         SVG.clear("lines");
-                        while (clicked.length > 0) {
-                            const [i, el] = clicked.pop();
+                        for (const [i, el] of clicked) {
                             el.setAttribute("fill", GUI.COLORS.line.N);
+                            el.setAttribute("opacity", O1);
                         }
+                        clicked.clear();
                         return;
                     }
-                    clicked.push([i, el]);
-                    NOTE.time(`Clicked set is: [${clicked.map(([i, el]) => i)}]`);
+                    clicked.set(i, el);
+                    NOTE.time(`Clicked set is: [${clicked.keys()}]`);
                     el.setAttribute("fill", GUI.COLORS.line.A);
                     SVG.clear("lines");
-                    const L = MAIN.get_lines(clicked.map(([i, el]) => Q[i]));
+                    const L = MAIN.get_lines(Array.from(clicked.keys()).map(i => Q[i]));
                     if (L.length > 0) {
                         SVG.draw_segments(Lsvg, L.map(l => MAIN.line_2_coords(l)), {
-                            id: "line", stroke: GUI.COLORS.line.L, stroke_width: 5,
+                            id: "line", stroke: GUI.COLORS.line.L, stroke_width: R1,
                         });
                     }
                 };
@@ -243,8 +256,6 @@ const MAIN = {
                 const d = M.dot(b, v);
                 out.push([ang, d]);
             }
-        } else if (P.length == 4) {
-        } else if (P.length == 5) {
         }
         return out;
     },
