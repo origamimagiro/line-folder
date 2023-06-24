@@ -38,9 +38,13 @@ export const SVG = {   // DRAWING
         const g = SVG.append("g", svg);
         if (options.id != undefined) { g.setAttribute("id", options.id); }
         for (const [i, p] of P.entries()) {
+            if (options.filter && !options.filter(i)) { continue; }
             const [x, y] = M.mul(p, SVG.SCALE);
             const color = SVG.get_val(options.fill, i, "black");
-            SVG.draw_point(g, [x, y], color, SVG.get_val(options.r, i, 2));
+            const el = SVG.draw_point(g, [x, y], color, SVG.get_val(options.r, i, 2));
+            if (options.id != undefined) {
+                el.setAttribute("id", `${options.id}${i}`);
+            }
             if (options.text) {
                 SVG.draw_label(g, [x, y], color, i);
             }

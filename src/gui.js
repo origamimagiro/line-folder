@@ -26,6 +26,11 @@ export const GUI = {   // INTERFACE
             "purple", "brown", "darkviolet", "teal", "olivedrab", "fuchsia",
             "deepskyblue", "orangered", "maroon", "yellow"],
         error: ["yellow", "lightskyblue", "lightpink", "lightgreen"],
+        line: {
+            N: "black",
+            A: "red",
+            L: "blue",
+        },
     },
     update_text: (FOLD, CELL) => {
         SVG.clear("export");
