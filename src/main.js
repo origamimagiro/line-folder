@@ -202,7 +202,7 @@ const MAIN = {
         }
         clicked.set(i, el);
         NOTE.time(`Clicked set is: [${Array.from(clicked.keys())}]`);
-        el.setAttribute("fill", MAIN.color.active);
+        el.setAttribute("fill", MAIN.color.select);
         SVG.clear("lines");
         const L = MAIN.get_lines(Array.from(clicked.keys()).map(i => Q[i]));
         if (L.length > 0) {
