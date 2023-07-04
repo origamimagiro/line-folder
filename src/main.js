@@ -1,8 +1,8 @@
-import { M } from "./math.js";
-import { NOTE } from "./note.js";
-import { SVG } from "./svg.js";
-import { IO } from "./io.js";
-import { X } from "./conversion.js";
+import { M } from "./flatfolder/math.js";
+import { NOTE } from "./flatfolder/note.js";
+import { SVG } from "./flatfolder/svg.js";
+import { IO } from "./flatfolder/io.js";
+import { X } from "./flatfolder/conversion.js";
 
 window.onload = () => { MAIN.startup(); };  // entry point
 
@@ -134,6 +134,9 @@ const MAIN = {
         return [FOLD, CELL];
     },
     update_fold: (FOLD, CELL) => {
+        SVG.clear("export");
+        const fold_button = document.getElementById("fold_button");
+        fold_button.style.display = "none";
         const {EF, Ff, eps} = FOLD;
         const {P, SP, SE, PP, CP, SC, CF, CD} = CELL;
         const svg = SVG.clear("org");
@@ -196,8 +199,9 @@ const MAIN = {
         );
     },
     point_click: (i, el, clicked, svg, Q, FOLD, CELL) => {
+        const {P} = CELL;
         NOTE.time(`Clicked point ${i}`);
-        if (clicked.has(i) || (clicked.size > 3)) {
+        if (clicked.has(i) || (clicked.size >= 4)) {
             SVG.clear("lines");
             MAIN.clear_clicked(clicked);
             MAIN.point_over(el);
@@ -275,6 +279,15 @@ const MAIN = {
         const FV_ = FOLD_.FV;
         const FO_ = FOLD_.FO;
         const eps_ = FOLD_.eps;
+        const flip = document.getElementById("flip").checked;
+        if (flip) {
+            const [u, d] = line;
+            const o = [0.5, 0.5];
+            const p = M.add(M.refX(M.sub(M.mul(u, d), o)), o);
+            const v = M.refX(u);
+            const d2 = M.dot(p, v);
+            line = [v, d2];
+        }
         const [FV2, V, VD] = MAIN.FV_V_line_eps_2_FV2_V2_VD2(FV_, V_, line, eps_);
         const FV = [];
         const F_map = FV2.map(() => []);
@@ -283,15 +296,6 @@ const MAIN = {
                 if (f.length > 0) {
                     F_map[fi].push(FV.length);
                     FV.push(f);
-                }
-            }
-        }
-        const FG = MAIN.FV_VD_2_FG(FV, VD);
-        const FO = [];
-        for (const [f, g, o] of FO_) {
-            for (const f_ of F_map[f]) {
-                for (const g_ of F_map[g]) {
-                    FO.push([f_, g_, o]);
                 }
             }
         }
@@ -328,16 +332,29 @@ const MAIN = {
         NOTE.lap();
         NOTE.time("Making face-cell maps");
         const [CF, FC] = X.EF_FV_SP_SE_CP_SC_2_CF_FC(EF, FV, SP, SE, CP, SC);
+        ////////
+        const BF_set = new Set(X.CF_2_BF(CF));
+        const FO = [];
+        for (const [f, g, o] of FO_) {
+            for (const f_ of F_map[f]) {
+                for (const g_ of F_map[g]) {
+                    const pair = M.encode_order_pair([f_, g_]);
+                    if (BF_set.has(pair)) {
+                        FO.push([f_, g_, o]);
+                    }
+                }
+            }
+        }
+        ////////
         const edges = FO.map(([f1, f2, o]) => {
             return M.encode((Ff[f2]*o >= 0) ? [f1, f2] : [f2, f1]);
         });
         const CD = X.CF_edges_flip_2_CD(CF, edges);
         NOTE.count(CF, "face-cell adjacencies");
         NOTE.lap();
-        const FOLD = {V, FV, EV, EF, FE, Ff, eps};
+        const FOLD = {V, FV, EV, EF, FE, Ff, FO, eps};
         const CELL = {P, SP, SE, PP, CP, CS, SC, CF, FC, CD};
         const svg = SVG.clear("org");
-        const flip = document.getElementById("flip").checked;
         const tops = CD.map(S => flip ? S[0] : S[S.length - 1]);
         const SD = X.EF_SE_SC_CF_CD_2_SD(EF, SE, SC, CF, tops);
         const m = [0.5, 0.5];
@@ -367,34 +384,59 @@ const MAIN = {
             opacity: MAIN.opacity.normal,
         });
         ////////
+        const FG = MAIN.FV_VD_2_FG(FV, VD);
         SVG.clear("lines");
         MAIN.clear_clicked(clicked);
         document.getElementById("lines").appendChild(el);
-        el.onmouseover = undefined;
-        el.onmouseout = undefined;
-        el.onclick = undefined;
+        el.onmouseout = () => {
+            el.setAttribute("stroke", MAIN.color.active);
+            el.setAttribute("stroke-width", MAIN.radius.normal);
+        };
+        el.onclick = () => MAIN.update_fold(FOLD_, CELL_);
         el.setAttribute("stroke", MAIN.color.active);
         el.setAttribute("stroke-width", MAIN.radius.normal);
+        const clicked_groups = new Set();
         for (let i = 0; i < CF.length; ++i) {
             const el = document.getElementById(`fold_c${i}`);
-            el.onmouseover = () => MAIN.cell_over(i, tops);
-            el.onmouseout = () => MAIN.cell_out(i, tops, colors[i]);
+            el.onmouseover = () => MAIN.cell_over(i, tops, FG);
+            el.onmouseout = () => MAIN.cell_out(i, tops, FG, colors, clicked_groups);
+            el.onclick = () => MAIN.cell_click(i, tops, FG, colors, clicked_groups);
         }
+        const fold_button = document.getElementById("fold_button");
+        fold_button.style.display = "inline";
+        fold_button.onclick = () => {
+            if (clicked_groups.size == 0) {
+                MAIN.update_fold(FOLD_, CELL_);
+            } else {
+                MAIN.write(FOLD);
+            }
+        };
     },
-    cell_over: (i, Ctop) => {
+    cell_over: (i, Ctop, FG) => {
+        const g = FG[Ctop[i]];
         for (let j = 0; j < Ctop.length; ++j) {
-            if (Ctop[i] == Ctop[j]) {
+            if (g == FG[Ctop[j]]) {
                 const el = document.getElementById(`fold_c${j}`);
                 el.setAttribute("fill", "lightpink");
             }
         }
     },
-    cell_out: (i, Ctop, color) => {
+    cell_out: (i, Ctop, FG, Ccolor, clicked) => {
+        const g1 = FG[Ctop[i]];
         for (let j = 0; j < Ctop.length; ++j) {
-            if (Ctop[i] == Ctop[j]) {
+            const g2 = FG[Ctop[j]];
+            if (g1 == g2) {
                 const el = document.getElementById(`fold_c${j}`);
-                el.setAttribute("fill", color);
+                el.setAttribute("fill", clicked.has(g2) ? "yellow" : Ccolor[j]);
             }
+        }
+    },
+    cell_click: (i, Ctop, FG, Ccolor, clicked) => {
+        const g = FG[Ctop[i]];
+        if (clicked.has(g)) {
+            clicked.delete(g);
+        } else {
+            clicked.add(g);
         }
     },
     FOLD_2_V_FV_FO: (doc) => {
@@ -570,6 +612,33 @@ const MAIN = {
             return pair;
         });
         return [FV2, V2, VD];
+    },
+    write: (FOLD) => {
+        const {V, Vf, EV, EA, FV, FO} = FOLD;
+        const path = document.getElementById("import").value.split("\\");
+        const name = path[path.length - 1].split(".")[0];
+        FOLD = {
+            file_spec: 1.1,
+            file_creator: "flat-folder",
+            file_title: `${name}_state`,
+            file_classes: ["singleModel"],
+            vertices_coords:  V,
+            edges_vertices:   EV,
+            edges_assignment: EA,
+            faces_vertices:   FV,
+            faceOrders:       FO,
+        };
+        const data = new Blob([JSON.stringify(FOLD, undefined, 2)], {
+            type: "application/json"});
+        const ex = SVG.clear("export");
+        const link = document.createElement("a");
+        const button = document.createElement("input");
+        ex.appendChild(link);
+        link.appendChild(button);
+        link.setAttribute("download", `${name}_state.fold`);
+        link.setAttribute("href", window.URL.createObjectURL(data));
+        button.setAttribute("type", "button");
+        button.setAttribute("value", "Output State");
     },
 };
 /*  Axioms:
