@@ -240,12 +240,42 @@ const MAIN = {
         el.setAttribute("stroke", MAIN.color.normal);
         el.setAttribute("stroke-width", MAIN.radius.normal);
     },
+    FV_VD_2_FG: (FV, VD) => {
+        const EF_map = new Map();
+        for (const [i, F] of FV.entries()) {
+            for (const [j, v1] of F.entries()) {
+                const v2 = F[(j + 1) % F.length];
+                EF_map.set(M.encode([v2, v1]), i);
+            }
+        }
+        const FG = FV.map(() => undefined);
+        let g = 0;
+        const dfs = (i) => {
+            if (FG[i] != undefined) { return; }
+            FG[i] = g;
+            const F = FV[i];
+            for (const [j, v1] of F.entries()) {
+                const v2 = F[(j + 1) % F.length];
+                if ((VD[v1] == 0) && (VD[v2] == 0)) { continue; }
+                const fi = EF_map.get(M.encode([v1, v2]));
+                if (fi != undefined) {
+                    dfs(fi);
+                }
+            }
+        };
+        for (let i = 0; i < FG.length; ++i) {
+            if (FG[i] != undefined) { continue; }
+            dfs(i);
+            ++g;
+        }
+        return FG;
+    },
     line_click: (el, clicked, line, FOLD_, CELL_) => {
         const V_ = FOLD_.V;
         const FV_ = FOLD_.FV;
         const FO_ = FOLD_.FO;
         const eps_ = FOLD_.eps;
-        const [FV2, V] = MAIN.FV_V_line_eps_2_FV2_V2(FV_, V_, line, eps_);
+        const [FV2, V, VD] = MAIN.FV_V_line_eps_2_FV2_V2_VD2(FV_, V_, line, eps_);
         const FV = [];
         const F_map = FV2.map(() => []);
         for (let fi = 0; fi < FV2.length; ++fi) {
@@ -256,6 +286,7 @@ const MAIN = {
                 }
             }
         }
+        const FG = MAIN.FV_VD_2_FG(FV, VD);
         const FO = [];
         for (const [f, g, o] of FO_) {
             for (const f_ of F_map[f]) {
@@ -380,6 +411,7 @@ const MAIN = {
     },
     FV_V_2_Ff: (FV, V) => FV.map(fV => (M.polygon_area2(fV.map(i => V[i])) < 0)),
     PP_Ctop_CP_SC_2_visible: (P, PP, Ctop, CP, SC) => {
+        // computes boolean whether each vertex isvisible from top
         const SC_map = new Map();
         for (const [i, C] of CP.entries()) {
             for (const [j, p1] of C.entries()) {
@@ -477,13 +509,13 @@ const MAIN = {
         const p2 = M.sub(p, off);
         return [p1, p2];
     },
-    FV_V_line_eps_2_FV2_V2: (FV, V, line, eps) => {
+    FV_V_line_eps_2_FV2_V2_VD2: (FV, V, line, eps) => {
         // assumes convex faces (or line divides a face into at most two pieces
         const [u, d] = line;
         const [a, b] = MAIN.line_2_coords(line);
         const nV = V.length;
         const V2 = V.map(v => v);
-        const D = V.map(v => {
+        const VD = V.map(v => {
             const dv = M.dot(u, v) - d;
             return (Math.abs(dv) <= eps) ? 0 : dv;
         });
@@ -493,7 +525,7 @@ const MAIN = {
             const nF = F.length;
             let [neg, pos] = [false, false];
             for (const v of F) {
-                const d = D[v];
+                const d = VD[v];
                 if (d < 0) { neg = true; }
                 if (d > 0) { pos = true; }
             }
@@ -505,23 +537,23 @@ const MAIN = {
                 return pair;
             }
             let i = 1;
-            while ((i < nF) && ((D[F[i - 1]] < 0) == (D[F[i]] < 0))) {
+            while ((i < nF) && ((VD[F[i - 1]] < 0) == (VD[F[i]] < 0))) {
                 ++i;
             }
             for (let j = 0; j < nF; ++j) {
                 const i1 = (i + j) % nF;
                 const v1 = F[i1];
-                if (Math.abs(D[v1]) == 0) {
+                if (Math.abs(VD[v1]) == 0) {
                     pair[0].push(v1);
                     pair[1].push(v1);
                     continue;
                 }
-                if (D[v1] > 0) { pair[0].push(v1); }
-                if (D[v1] < 0) { pair[1].push(v1); }
+                if (VD[v1] > 0) { pair[0].push(v1); }
+                if (VD[v1] < 0) { pair[1].push(v1); }
                 const i2 = (i1 + 1) % nF;
                 const v2 = F[i2];
-                if (Math.abs(D[v2]) == 0) { continue; }
-                if ((D[v1] < 0) != (D[v2] < 0)) {
+                if (Math.abs(VD[v2]) == 0) { continue; }
+                if ((VD[v1] < 0) != (VD[v2] < 0)) {
                     const s = M.encode_order_pair([v1, v2]);
                     let xi = EV_map.get(s);
                     if (xi == undefined) {
@@ -529,6 +561,7 @@ const MAIN = {
                         xi = V2.length;
                         EV_map.set(s, xi);
                         V2.push(x);
+                        VD.push(0);
                     }
                     pair[0].push(xi);
                     pair[1].push(xi);
@@ -536,7 +569,7 @@ const MAIN = {
             }
             return pair;
         });
-        return [FV2, V2];
+        return [FV2, V2, VD];
     },
 };
 /*  Axioms:
