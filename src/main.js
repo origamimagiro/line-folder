@@ -77,7 +77,13 @@ const MAIN = {
             return;
         }
         NOTE.time(`Importing from file ${file_name}`);
-        const [FOLD, CELL] = MAIN.import_state(doc);
+        const [V_org, FV, FO] = MAIN.FOLD_2_V_FV_FO(doc);
+        const V = M.normalize_points(V_org);
+        for (const property of [V, FV, FO]) {
+            if (property == undefined) { return; }
+        }
+        const [FOLD, CELL] = MAIN.V_FV_2_FOLD_CELL(V, FV);
+        FOLD.FO = FO;
         MAIN.update_fold(FOLD, CELL);
         document.getElementById("flip").onchange = (e) => {
             NOTE.start("Flipping model");
@@ -85,77 +91,37 @@ const MAIN = {
             NOTE.end();
         };
     },
-    import_state: (doc) => {
-        const [V_org, FV, FO] = MAIN.FOLD_2_V_FV_FO(doc);
-        const V = M.normalize_points(V_org);
-        for (const property of [V, FV, FO]) {
-            if (property == undefined) { return; }
-        }
-        const Ff = MAIN.FV_V_2_Ff(FV, V);
-        const EV_set = new Set();
-        for (const fV of FV) {
-            let i = fV.length - 1;
-            for (let j = 0; j < fV.length; ++j) {
-                EV_set.add(M.encode_order_pair([fV[i], fV[j]]));
-                i = j;
-            }
-        }
-        const EV = Array.from(EV_set).sort().map(k => M.decode(k));
-        const [EF, FE] = X.EV_FV_2_EF_FE(EV, FV);
-        const L = EV.map(vs => vs.map(i => V[i]));
-        const eps = M.min_line_length(L) / M.EPS;
-        NOTE.time(`Using eps ${eps} from min line length ${
-            eps*M.EPS} (factor ${M.EPS})`);
-        NOTE.time("Constructing points and segments from edges");
-        const [P, SP, SE] = X.L_2_V_EV_EL(L, eps);
-        NOTE.annotate(P, "points_coords");
-        NOTE.annotate(SP, "segments_points");
-        NOTE.annotate(SE, "segments_edges");
-        NOTE.lap();
-        NOTE.time("Constructing cells from segments");
-        const [PP,CP] = X.V_EV_2_VV_FV(P, SP);
-        NOTE.annotate(CP, "cells_points");
-        NOTE.lap();
-        NOTE.time("Computing segments_cells");
-        const [SC, CS] = X.EV_FV_2_EF_FE(SP, CP);
-        NOTE.annotate(SC, "segments_cells");
-        NOTE.annotate(CS, "cells_segments");
-        NOTE.lap();
-        NOTE.time("Making face-cell maps");
-        const [CF, FC] = X.EF_FV_SP_SE_CP_SC_2_CF_FC(EF, FV, SP, SE, CP, SC);
+    FOLD_CELL_2_STATE: (FOLD, CELL, flip) => {
+        const {EF, Ff, FO} = FOLD;
+        const {P, SE, PP, CP, SC, CF} = CELL;
+        const m = [0.5, 0.5];
+        const Q = P.map(p => (flip ? M.add(M.refX(M.sub(p, m)), m) : p));
         const edges = FO.map(([f1, f2, o]) => {
             return M.encode((Ff[f2]*o >= 0) ? [f1, f2] : [f2, f1]);
         });
         const CD = X.CF_edges_flip_2_CD(CF, edges);
-        NOTE.count(CF, "face-cell adjacencies");
-        NOTE.lap();
-        const FOLD = {V, FV, EV, EF, FE, Ff, FO, eps};
-        const CELL = {P, SP, SE, PP, CP, CS, SC, CF, FC, CD};
-        return [FOLD, CELL];
+        const Ctop = CD.map(S => flip ? S[0] : S[S.length - 1]);
+        const Ccolor = Ctop.map(d => {
+            if (d == undefined) { return undefined; }
+            if (Ff[d] != flip)  { return MAIN.color.face.top; }
+            else                { return MAIN.color.face.bottom; }
+        });
+        const SD = X.EF_SE_SC_CF_CD_2_SD(EF, SE, SC, CF, Ctop);
+        const Pvisible = MAIN.PP_Ctop_CP_SC_2_Pvisible(Q, PP, Ctop, CP, SC);
+        return {Q, CD, Ctop, Ccolor, SD, Pvisible};
     },
     update_fold: (FOLD, CELL) => {
         SVG.clear("export");
         const fold_button = document.getElementById("fold_button");
         fold_button.style.display = "none";
-        const {EF, Ff, eps} = FOLD;
-        const {P, SP, SE, PP, CP, SC, CF, CD} = CELL;
-        const svg = SVG.clear("org");
         const flip = document.getElementById("flip").checked;
-        const tops = CD.map(S => flip ? S[0] : S[S.length - 1]);
-        const SD = X.EF_SE_SC_CF_CD_2_SD(EF, SE, SC, CF, tops);
-        const m = [0.5, 0.5];
-        const Q = P.map(p => (flip ? M.add(M.refX(M.sub(p, m)), m) : p));
+        const STATE = MAIN.FOLD_CELL_2_STATE(FOLD, CELL, flip);
+        const {CP, SP} = CELL;
+        const {Q, SD, Ccolor, Pvisible} = STATE;
+        const svg = SVG.clear("org");
         const cells = CP.map(V => M.expand(V, Q));
-        const colors = tops.map(d => {
-            if (d == undefined) { return undefined; }
-            if (Ff[d] != flip)  { return MAIN.color.face.top; }
-            else                { return MAIN.color.face.bottom; }
-        });
-        CELL.Ctop = tops;
-        CELL.Ccolor = colors;
-        const visible = MAIN.PP_Ctop_CP_SC_2_visible(Q, PP, tops, CP, SC);
         SVG.draw_polygons(svg, cells, {
-            id: "fold_c", fill: colors, stroke: colors});
+            id: "fold_c", fill: Ccolor, stroke: Ccolor});
         const lines = SP.map((ps) => M.expand(ps, Q));
         SVG.draw_segments(svg, lines, {
             id: "fold_s_crease", stroke: MAIN.color.edge.F,
@@ -165,7 +131,7 @@ const MAIN = {
             filter: (i) => SD[i] == "B"});
         const Lsvg = SVG.append("g", svg, {id: "lines"});
         SVG.draw_points(svg, Q, {
-            id: "fold_p", filter: (i) => visible[i],
+            id: "fold_p", filter: (i) => Pvisible[i],
             fill: MAIN.color.normal, r: MAIN.radius.normal,
             opacity: MAIN.opacity.normal,
         });
@@ -299,7 +265,111 @@ const MAIN = {
                 }
             }
         }
-        ////////
+        const FG = MAIN.FV_VD_2_FG(FV, VD);
+        const [FOLD, CELL] = MAIN.V_FV_2_FOLD_CELL(V, FV);
+        const {Ff, EF} = FOLD;
+        const {P, PP, CP, CF, SE, SC, SP} = CELL;
+        const BF_set = new Set(X.CF_2_BF(CF));
+        const FO = [];
+        for (const [f, g, o] of FO_) {
+            for (const f_ of F_map[f]) {
+                for (const g_ of F_map[g]) {
+                    const pair = M.encode_order_pair([f_, g_]);
+                    if (BF_set.has(pair)) {
+                        FO.push([f_, g_, o]);
+                    }
+                }
+            }
+        }
+        FOLD.FO = FO;
+        const STATE = MAIN.FOLD_CELL_2_STATE(FOLD, CELL, flip);
+        const {Q, SD, Ctop, Ccolor, Pvisible} = STATE;
+        const svg = SVG.clear("org");
+        const cells = CP.map(V => M.expand(V, Q));
+        SVG.draw_polygons(svg, cells, {
+            id: "fold_c", fill: Ccolor, stroke: Ccolor});
+        const lines = SP.map((ps) => M.expand(ps, Q));
+        SVG.draw_segments(svg, lines, {
+            id: "fold_s_crease", stroke: MAIN.color.edge.F,
+            filter: (i) => SD[i] == "C"});
+        SVG.draw_segments(svg, lines, {
+            id: "fold_s_edge", stroke: MAIN.color.edge.B,
+            filter: (i) => SD[i] == "B"});
+        const Lsvg = SVG.append("g", svg, {id: "lines"});
+        SVG.draw_points(svg, Q, {
+            id: "fold_p", filter: (i) => Pvisible[i],
+            fill: MAIN.color.normal, r: MAIN.radius.normal,
+            opacity: MAIN.opacity.normal,
+        });
+        SVG.clear("lines");
+        MAIN.clear_clicked(clicked);
+        document.getElementById("lines").appendChild(el);
+        el.onmouseout = () => {
+            el.setAttribute("stroke", MAIN.color.active);
+            el.setAttribute("stroke-width", MAIN.radius.normal);
+        };
+        el.onclick = () => MAIN.update_fold(FOLD_, CELL_);
+        el.setAttribute("stroke", MAIN.color.active);
+        el.setAttribute("stroke-width", MAIN.radius.normal);
+        const clicked_groups = new Set();
+        for (let i = 0; i < CF.length; ++i) {
+            const el = document.getElementById(`fold_c${i}`);
+            el.onmouseover = () => MAIN.cell_over(i, Ctop, FG);
+            el.onmouseout = () => MAIN.cell_out(i, Ctop, FG, Ccolor, clicked_groups);
+            el.onclick = () => MAIN.cell_click(i, Ctop, FG, Ccolor, clicked_groups);
+        }
+        const fold_button = document.getElementById("fold_button");
+        fold_button.style.display = "inline";
+        fold_button.onclick = () => {
+            if (clicked_groups.size == 0) {
+                MAIN.update_fold(FOLD_, CELL_);
+            } else {
+                MAIN.write(MAIN.make_fold(V, FV_, FV, F_map, FG, FO_, clicked_groups));
+            }
+        };
+    },
+    make_fold: (V, FV_, FV, F_map_old, FG, FO_, clicked_groups) => {
+        const FVx = [];
+        const F_map = F_map_old.map(() => []);
+        for (let fi = 0; fi < F_map_old.length; ++fi) {
+            const F = F_map_old[fi];
+            if (F.length == 2) {
+                const [f1, f2] = F;
+                if (clicked_groups.has(FG[f1]) == clicked_groups.has(FG[f2])) {
+                    F_map[fi].push(FVx.length);
+                    FVx.push(FV_[fi]);
+                } else {
+                    F_map[fi].push(FVx.length);
+                    FVx.push(FV[f1]);
+                    F_map[fi].push(FVx.length);
+                    FVx.push(FV[f2]);
+                }
+            } else if (F.length == 1) {
+                F_map[fi].push(FVx.length);
+                FVx.push(FV_[fi]);
+            } else {
+                throw new Error("malformed FV2");
+            }
+        }
+        const [FOLD, CELL] = MAIN.V_FV_2_FOLD_CELL(V, FVx);
+        const {Ff, EF} = FOLD;
+        const {P, PP, CP, CF, SE, SC, SP} = CELL;
+        const BF_set = new Set(X.CF_2_BF(CF));
+        const FO = [];
+        for (const [f, g, o] of FO_) {
+            for (const f_ of F_map[f]) {
+                for (const g_ of F_map[g]) {
+                    const pair = M.encode_order_pair([f_, g_]);
+                    if (BF_set.has(pair)) {
+                        FO.push([f_, g_, o]);
+                    }
+                }
+            }
+        }
+        FOLD.FO = FO;
+        return FOLD;
+    },
+    V_FV_2_FOLD_CELL: (V, FV) => {
         const Ff = MAIN.FV_V_2_Ff(FV, V);
         const EV_set = new Set();
         for (const fV of FV) {
@@ -332,85 +402,9 @@ const MAIN = {
         NOTE.lap();
         NOTE.time("Making face-cell maps");
         const [CF, FC] = X.EF_FV_SP_SE_CP_SC_2_CF_FC(EF, FV, SP, SE, CP, SC);
-        ////////
-        const BF_set = new Set(X.CF_2_BF(CF));
-        const FO = [];
-        for (const [f, g, o] of FO_) {
-            for (const f_ of F_map[f]) {
-                for (const g_ of F_map[g]) {
-                    const pair = M.encode_order_pair([f_, g_]);
-                    if (BF_set.has(pair)) {
-                        FO.push([f_, g_, o]);
-                    }
-                }
-            }
-        }
-        ////////
-        const edges = FO.map(([f1, f2, o]) => {
-            return M.encode((Ff[f2]*o >= 0) ? [f1, f2] : [f2, f1]);
-        });
-        const CD = X.CF_edges_flip_2_CD(CF, edges);
-        NOTE.count(CF, "face-cell adjacencies");
-        NOTE.lap();
-        const FOLD = {V, FV, EV, EF, FE, Ff, FO, eps};
-        const CELL = {P, SP, SE, PP, CP, CS, SC, CF, FC, CD};
-        const svg = SVG.clear("org");
-        const tops = CD.map(S => flip ? S[0] : S[S.length - 1]);
-        const SD = X.EF_SE_SC_CF_CD_2_SD(EF, SE, SC, CF, tops);
-        const m = [0.5, 0.5];
-        const Q = P.map(p => (flip ? M.add(M.refX(M.sub(p, m)), m) : p));
-        const cells = CP.map(V => M.expand(V, Q));
-        const colors = tops.map(d => {
-            if (d == undefined) { return undefined; }
-            if (Ff[d] != flip)  { return MAIN.color.face.top; }
-            else                { return MAIN.color.face.bottom; }
-        });
-        CELL.Ctop = tops;
-        CELL.Ccolor = colors;
-        const visible = MAIN.PP_Ctop_CP_SC_2_visible(Q, PP, tops, CP, SC);
-        SVG.draw_polygons(svg, cells, {
-            id: "fold_c", fill: colors, stroke: colors});
-        const lines = SP.map((ps) => M.expand(ps, Q));
-        SVG.draw_segments(svg, lines, {
-            id: "fold_s_crease", stroke: MAIN.color.edge.F,
-            filter: (i) => SD[i] == "C"});
-        SVG.draw_segments(svg, lines, {
-            id: "fold_s_edge", stroke: MAIN.color.edge.B,
-            filter: (i) => SD[i] == "B"});
-        const Lsvg = SVG.append("g", svg, {id: "lines"});
-        SVG.draw_points(svg, Q, {
-            id: "fold_p", filter: (i) => visible[i],
-            fill: MAIN.color.normal, r: MAIN.radius.normal,
-            opacity: MAIN.opacity.normal,
-        });
-        ////////
-        const FG = MAIN.FV_VD_2_FG(FV, VD);
-        SVG.clear("lines");
-        MAIN.clear_clicked(clicked);
-        document.getElementById("lines").appendChild(el);
-        el.onmouseout = () => {
-            el.setAttribute("stroke", MAIN.color.active);
-            el.setAttribute("stroke-width", MAIN.radius.normal);
-        };
-        el.onclick = () => MAIN.update_fold(FOLD_, CELL_);
-        el.setAttribute("stroke", MAIN.color.active);
-        el.setAttribute("stroke-width", MAIN.radius.normal);
-        const clicked_groups = new Set();
-        for (let i = 0; i < CF.length; ++i) {
-            const el = document.getElementById(`fold_c${i}`);
-            el.onmouseover = () => MAIN.cell_over(i, tops, FG);
-            el.onmouseout = () => MAIN.cell_out(i, tops, FG, colors, clicked_groups);
-            el.onclick = () => MAIN.cell_click(i, tops, FG, colors, clicked_groups);
-        }
-        const fold_button = document.getElementById("fold_button");
-        fold_button.style.display = "inline";
-        fold_button.onclick = () => {
-            if (clicked_groups.size == 0) {
-                MAIN.update_fold(FOLD_, CELL_);
-            } else {
-                MAIN.write(FOLD);
-            }
-        };
+        const FOLD = {V, FV, EV, EF, FE, Ff, eps};
+        const CELL = {P, SP, SE, PP, CP, CS, SC, CF, FC};
+        return [FOLD, CELL];
     },
     cell_over: (i, Ctop, FG) => {
         const g = FG[Ctop[i]];
@@ -452,7 +446,7 @@ const MAIN = {
         });
     },
     FV_V_2_Ff: (FV, V) => FV.map(fV => (M.polygon_area2(fV.map(i => V[i])) < 0)),
-    PP_Ctop_CP_SC_2_visible: (P, PP, Ctop, CP, SC) => {
+    PP_Ctop_CP_SC_2_Pvisible: (P, PP, Ctop, CP, SC) => {
         // computes boolean whether each vertex isvisible from top
         const SC_map = new Map();
         for (const [i, C] of CP.entries()) {
