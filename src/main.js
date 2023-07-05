@@ -29,8 +29,8 @@ const MAIN = {
         hover: 1,
     },
     radius: {
-        normal: 5,
-        hover: 10,
+        normal: 10,
+        hover: 20,
     },
     startup: () => {
         CON.build();
