@@ -66,6 +66,11 @@ const MAIN = {
                 file_reader.readAsText(e.target.files[0]);
             }
         };
+        const V = [[0, 0], [0, 1], [1, 0], [1, 1]];
+        const FV = [[0, 2, 3, 1]];
+        const [FOLD, CELL] = MAIN.V_FV_2_FOLD_CELL(V, FV);
+        FOLD.FO = [];
+        MAIN.update_fold(FOLD, CELL);
         NOTE.end();
     },
     process_file: (e) => {
@@ -88,18 +93,19 @@ const MAIN = {
         const [FOLD, CELL] = MAIN.V_FV_2_FOLD_CELL(V, FV);
         FOLD.FO = FO;
         MAIN.update_fold(FOLD, CELL);
-        document.getElementById("flip").onchange = (e) => {
-            NOTE.start("Flipping model");
-            MAIN.update_fold(FOLD, CELL);
-            NOTE.end();
-        };
     },
     update_fold: (FOLD, CELL) => {
         SVG.clear("export");
         document.getElementById("fold_button").style.display = "none";
         document.getElementById("state_controls").style.display = "none";
         document.getElementById("state_config").style.display = "none";
-        const flip = document.getElementById("flip").checked;
+        const flip_el = document.getElementById("flip");
+        const flip = flip_el.checked;
+        flip_el.onchange = (e) => {
+            NOTE.start("Flipping model");
+            MAIN.update_fold(FOLD, CELL);
+            NOTE.end();
+        };
         const STATE = MAIN.FOLD_CELL_2_STATE(FOLD, CELL, flip);
         const {CP, SP} = CELL;
         const {Q, SD, Ccolor, Pvisible} = STATE;
@@ -411,7 +417,7 @@ const MAIN = {
             const svg = SVG.clear("output");
             MAIN.draw_state(svg, CELL, STATE, flip);
             MAIN.update_component(FOLD, CELL, BF, GB, GA, GI);
-            MAIN.write(FOLD);
+            MAIN.write(FOLD, CELL);
         }
         NOTE.lap();
         stop = Date.now();
@@ -454,9 +460,21 @@ const MAIN = {
                 NOTE.time("Drawing fold");
                 const svg = SVG.clear("output");
                 MAIN.draw_state(svg, CELL, STATE, flip);
-                MAIN.write(FOLD);
+                MAIN.write(FOLD, CELL);
+                const flip_el = document.getElementById("flip");
+                flip_el.onchange = () => MAIN.flip_output(FOLD, CELL);
             };
         }
+        const flip_el = document.getElementById("flip");
+        flip_el.onchange = () => MAIN.flip_output(FOLD, CELL);
+    },
+    flip_output: (FOLD, CELL) => {
+        const flip = document.getElementById("flip").checked;
+        NOTE.start("Flipping model");
+        const svg = SVG.clear("output");
+        const STATE = MAIN.FOLD_CELL_2_STATE(FOLD, CELL, flip);
+        MAIN.draw_state(svg, CELL, STATE, flip);
+        NOTE.end();
     },
     FO_Ff_BF_2_BA0: (FO, Ff, BF) => {
         const BA_map = new Map();
@@ -784,11 +802,11 @@ const MAIN = {
         }
         return FG;
     },
-    write: (FOLD) => {
+    write: (FOLD, CELL) => {
         const {V, Vf, EV, EA, FV, FO} = FOLD;
         const path = document.getElementById("import").value.split("\\");
         const name = path[path.length - 1].split(".")[0];
-        FOLD = {
+        const export_FOLD = {
             file_spec: 1.1,
             file_creator: "flat-folder",
             file_title: `${name}_state`,
@@ -799,9 +817,18 @@ const MAIN = {
             faces_vertices:   FV,
             faceOrders:       FO,
         };
-        const data = new Blob([JSON.stringify(FOLD, undefined, 2)], {
+        const data = new Blob([JSON.stringify(export_FOLD, undefined, 2)], {
             type: "application/json"});
         const ex = SVG.clear("export");
+        const replace = document.createElement("input");
+        ex.appendChild(replace);
+        replace.setAttribute("type", "button");
+        replace.setAttribute("value", "Replace");
+        replace.onclick = () => {
+            FOLD.V = M.normalize_points(FOLD.V);
+            CELL.P = M.normalize_points(CELL.P);
+            MAIN.update_fold(FOLD, CELL);
+        };
         const link = document.createElement("a");
         const button = document.createElement("input");
         ex.appendChild(link);
