@@ -95,23 +95,26 @@ const MAIN = {
         MAIN.update_fold(FOLD, CELL);
     },
     update_fold: (FOLD, CELL) => {
-        SVG.clear("export");
+        const slider = document.getElementById("slider");
+        slider.style.display = "none";
+        slider.setAttribute("value", 0);
+        document.getElementById("export").style.display = "none";
+        document.getElementById("replace").style.display = "none";
         document.getElementById("fold_button").style.display = "none";
         document.getElementById("state_controls").style.display = "none";
         document.getElementById("state_config").style.display = "none";
         const flip_el = document.getElementById("flip");
-        const flip = flip_el.checked;
         flip_el.onchange = (e) => {
             NOTE.start("Flipping model");
             MAIN.update_fold(FOLD, CELL);
             NOTE.end();
         };
-        const STATE = MAIN.FOLD_CELL_2_STATE(FOLD, CELL, flip);
+        const STATE = MAIN.FOLD_CELL_2_STATE(FOLD, CELL);
         const {CP, SP} = CELL;
         const {Q, SD, Ccolor, Pvisible} = STATE;
         SVG.clear("output");
         const svg = SVG.clear("input");
-        MAIN.draw_state(svg, CELL, STATE);
+        MAIN.draw_state(svg, FOLD, CELL, STATE);
         const clicked = new Map();
         for (let i = 0; i < Q.length; ++i) {
             const el = document.getElementById(`fold_p${i}`);
@@ -229,9 +232,9 @@ const MAIN = {
             }
         }
         FOLD.FO = FO;
-        const STATE = MAIN.FOLD_CELL_2_STATE(FOLD, CELL, flip);
+        const STATE = MAIN.FOLD_CELL_2_STATE(FOLD, CELL);
         const svg = SVG.clear("input");
-        MAIN.draw_state(svg, CELL, STATE);
+        MAIN.draw_state(svg, FOLD, CELL, STATE);
         SVG.clear("lines");
         MAIN.clear_clicked(clicked);
         document.getElementById("lines").appendChild(el);
@@ -260,9 +263,46 @@ const MAIN = {
             }
         };
     },
-    draw_state: (svg, CELL, STATE) => {
-        const {CP, SP} = CELL;
-        const {Q, SD, Ccolor, Pvisible} = STATE;
+    draw_state: (svg, FOLD, CELL, STATE) => {
+        const {Ff, EF} = FOLD;
+        const {P, CP, CF, SP, SC, SE} = CELL;
+        const {Ctop, Ccolor, Pvisible, CD, L} = STATE;
+        const flip = document.getElementById("flip").checked;
+        const m = [0.5, 0.5];
+        const Q = P.map(p => (flip ? M.add(M.refX(M.sub(p, m)), m) : p));
+        if (L != undefined) {
+            const val = +document.getElementById("slider").value;
+            const F_set = new Set(L);
+            if (flip) { L.reverse(); }
+            for (let i = L.length - 1; i >= val; --i) {
+                F_set.delete(L[i]);
+            }
+            if (flip) { L.reverse(); }
+            for (let i = 0; i < CD.length; ++i) {
+                const S = CD[i];
+                const D = S.map(a => a);
+                if (flip) {
+                    D.reverse();
+                }
+                Ctop[i] = undefined;
+                while (D.length > 0) {
+                    const fi = D.pop();
+                    if (!F_set.has(fi)) {
+                        Ctop[i] = fi;
+                        break;
+                    }
+                }
+            }
+            for (let i = 0; i < Ccolor.length; ++i) {
+                const d = Ctop[i];
+                let out = undefined;
+                if (d == undefined) { out = undefined; }
+                else if (Ff[d] != flip)  { out = MAIN.color.face.top; }
+                else                { out = MAIN.color.face.bottom; }
+                Ccolor[i] = out;
+            }
+        }
+        const SD = X.EF_SE_SC_CF_CD_2_SD(EF, SE, SC, CF, Ctop);
         const Q_ = M.normalize_points(Q);
         const cells = CP.map(V => M.expand(V, Q_));
         SVG.draw_polygons(svg, cells, {
@@ -411,13 +451,13 @@ const MAIN = {
             NOTE.time("Computing state");
             const edges = X.BF_GB_GA_GI_2_edges(BF, GB, GA, GI);
             FOLD.FO = X.edges_Ff_2_FO(edges, Ff);
-            const flip = document.getElementById("flip").checked;
-            const STATE = MAIN.FOLD_CELL_2_STATE(FOLD, CELL, flip);
+            const STATE = MAIN.FOLD_CELL_2_STATE(FOLD, CELL);
             NOTE.time("Drawing fold");
             const svg = SVG.clear("output");
-            MAIN.draw_state(svg, CELL, STATE, flip);
+            const slider = document.getElementById("slider");
+            slider.setAttribute("max", Ff.length);
+            MAIN.draw_state(svg, FOLD, CELL, STATE);
             MAIN.update_component(FOLD, CELL, BF, GB, GA, GI);
-            MAIN.write(FOLD, CELL);
         }
         NOTE.lap();
         stop = Date.now();
@@ -425,55 +465,54 @@ const MAIN = {
         return FOLD;
     },
     update_component: (FOLD, CELL, BF, GB, GA, GI) => {
-        SVG.clear("export");
         const comp_select = document.getElementById("component_select");
         const c = comp_select.value;
         document.getElementById("state_config").style.display = "none";
         const C = [];
-        if (c == "none") {
-        } else if (c == "all") {
-            for (const [i, _] of GA.entries()) {
-                C.push(i);
+        C.push(c);
+        const n = GA[c].length;
+        document.getElementById("state_config").style.display = "inline";
+        const state_label = document.getElementById("state_label");
+        const state_select = document.getElementById("state_select");
+        state_label.innerHTML = `${n} State${(n == 1) ? "" : "s"}`;
+        state_select.setAttribute("min", 1);
+        state_select.setAttribute("max", n);
+        state_select.value = GI[c] + 1;
+        state_select.onchange = () => {
+            NOTE.start("Computing new state");
+            let j = +state_select.value;
+            if (j < 1) { j = 1; }
+            if (j > n) { j = n; }
+            state_select.value = j;
+            GI[c] = j - 1;
+            NOTE.time("Computing state");
+            const edges = X.BF_GB_GA_GI_2_edges(BF, GB, GA, GI);
+            FOLD.FO = X.edges_Ff_2_FO(edges, FOLD.Ff);
+            const STATE = MAIN.FOLD_CELL_2_STATE(FOLD, CELL);
+            NOTE.time("Drawing fold");
+            const svg = SVG.clear("output");
+            MAIN.draw_state(svg, FOLD, CELL, STATE);
+            MAIN.write(FOLD, CELL);
+            const flip_el = document.getElementById("flip");
+            flip_el.onchange = () => MAIN.flip_output(FOLD, CELL);
+            const slider = document.getElementById("slider");
+            if (STATE.L == undefined) {
+                slider.style.display = "none";
+            } else {
+                slider.style.display = "inline";
+                slider.oninput = () => {
+                    SVG.clear("output");
+                    MAIN.draw_state(svg, FOLD, CELL, STATE);
+                };
             }
-        } else {
-            C.push(c);
-            const n = GA[c].length;
-            document.getElementById("state_config").style.display = "inline";
-            const state_label = document.getElementById("state_label");
-            const state_select = document.getElementById("state_select");
-            state_label.innerHTML = `${n} State${(n == 1) ? "" : "s"}`;
-            state_select.setAttribute("min", 1);
-            state_select.setAttribute("max", n);
-            state_select.value = GI[c] + 1;
-            state_select.onchange = (e) => {
-                NOTE.start("Computing new state");
-                let j = +e.target.value;
-                if (j < 1) { j = 1; }
-                if (j > n) { j = n; }
-                state_select.value = j;
-                GI[c] = j - 1;
-                NOTE.time("Computing state");
-                const edges = X.BF_GB_GA_GI_2_edges(BF, GB, GA, GI);
-                FOLD.FO = X.edges_Ff_2_FO(edges, FOLD.Ff);
-                const flip = document.getElementById("flip").checked;
-                const STATE = MAIN.FOLD_CELL_2_STATE(FOLD, CELL, flip);
-                NOTE.time("Drawing fold");
-                const svg = SVG.clear("output");
-                MAIN.draw_state(svg, CELL, STATE, flip);
-                MAIN.write(FOLD, CELL);
-                const flip_el = document.getElementById("flip");
-                flip_el.onchange = () => MAIN.flip_output(FOLD, CELL);
-            };
-        }
-        const flip_el = document.getElementById("flip");
-        flip_el.onchange = () => MAIN.flip_output(FOLD, CELL);
+        };
+        state_select.onchange();
     },
     flip_output: (FOLD, CELL) => {
-        const flip = document.getElementById("flip").checked;
         NOTE.start("Flipping model");
         const svg = SVG.clear("output");
-        const STATE = MAIN.FOLD_CELL_2_STATE(FOLD, CELL, flip);
-        MAIN.draw_state(svg, CELL, STATE, flip);
+        const STATE = MAIN.FOLD_CELL_2_STATE(FOLD, CELL);
+        MAIN.draw_state(svg, FOLD, CELL, STATE);
         NOTE.end();
     },
     FO_Ff_BF_2_BA0: (FO, Ff, BF) => {
@@ -591,14 +630,16 @@ const MAIN = {
         const CELL = {P, SP, SE, PP, CP, CS, SC, CF, FC};
         return [FOLD, CELL];
     },
-    FOLD_CELL_2_STATE: (FOLD, CELL, flip) => {
+    FOLD_CELL_2_STATE: (FOLD, CELL) => {
         const {EF, Ff, FO} = FOLD;
         const {P, SE, PP, CP, SC, CF} = CELL;
         const m = [0.5, 0.5];
+        const flip = document.getElementById("flip").checked;
         const Q = P.map(p => (flip ? M.add(M.refX(M.sub(p, m)), m) : p));
         const edges = FO.map(([f1, f2, o]) => {
             return M.encode((Ff[f2]*o >= 0) ? [f1, f2] : [f2, f1]);
         });
+        const L = MAIN.linearize(edges, Ff.length);
         const CD = X.CF_edges_flip_2_CD(CF, edges);
         const Ctop = CD.map(S => flip ? S[0] : S[S.length - 1]);
         const Ccolor = Ctop.map(d => {
@@ -608,7 +649,41 @@ const MAIN = {
         });
         const SD = X.EF_SE_SC_CF_CD_2_SD(EF, SE, SC, CF, Ctop);
         const Pvisible = MAIN.PP_Ctop_CP_SC_2_Pvisible(Q, PP, Ctop, CP, SC);
-        return {Q, CD, Ctop, Ccolor, SD, Pvisible};
+        return {Q, CD, Ctop, Ccolor, SD, Pvisible, L};
+    },
+    linearize: (edges, n) => {
+        const Adj = Array(n).fill(0).map(() => []);
+        for (const s of edges) {
+            const [f1, f2] = M.decode(s);
+            Adj[f1].push(f2);
+        }
+        const L = [];
+        const seen = Array(n).fill(false);
+        const dfs = (i) => {
+            if (seen[i]) { return; }
+            seen[i] = true;
+            for (const j of Adj[i]) {
+                dfs(j);
+            }
+            L.push(i);
+        };
+        for (let i = 0; i < n; ++i) {
+            dfs(i);
+        }
+        L.reverse();
+        console.assert(L.length == n);
+        const idx_map = Array(n).fill(undefined);
+        for (let i = 0; i < n; ++i) {
+            const fi = L[i];
+            idx_map[fi] = i;
+        }
+        for (const s of edges) {
+            const [f1, f2] = M.decode(s);
+            if (idx_map[f1] > idx_map[f2]) {
+                return undefined;
+            }
+        }
+        return L;
     },
     FV_V_2_Ff: (FV, V) => FV.map(fV => (M.polygon_area2(fV.map(i => V[i])) < 0)),
     PP_Ctop_CP_SC_2_Pvisible: (P, PP, Ctop, CP, SC) => {
@@ -669,6 +744,12 @@ const MAIN = {
                     const d = M.dot(b, v);
                     out.push([v, d]);
                 }
+                {   // through A perpendicular to BC
+                    const u = M.unit(M.sub(c, b));
+                    const d = M.dot(a, u);
+                    out.push([u, d]);
+                }
+            } else {
                 {   // through A perpendicular to BC
                     const u = M.unit(M.sub(c, b));
                     const d = M.dot(a, u);
@@ -819,24 +900,19 @@ const MAIN = {
         };
         const data = new Blob([JSON.stringify(export_FOLD, undefined, 2)], {
             type: "application/json"});
-        const ex = SVG.clear("export");
-        const replace = document.createElement("input");
-        ex.appendChild(replace);
-        replace.setAttribute("type", "button");
-        replace.setAttribute("value", "Replace");
+        const link = document.getElementById("export_anchor");
+        link.setAttribute("download", `${name}_state.fold`);
+        link.setAttribute("href", window.URL.createObjectURL(data));
+        link.style.textDecoration = "none";
+        const ex_button = document.getElementById("export");
+        ex_button.style.display = "inline";
+        const replace = document.getElementById("replace");
+        replace.style.display = "inline";
         replace.onclick = () => {
             FOLD.V = M.normalize_points(FOLD.V);
             CELL.P = M.normalize_points(CELL.P);
             MAIN.update_fold(FOLD, CELL);
         };
-        const link = document.createElement("a");
-        const button = document.createElement("input");
-        ex.appendChild(link);
-        link.appendChild(button);
-        link.setAttribute("download", `${name}_state.fold`);
-        link.setAttribute("href", window.URL.createObjectURL(data));
-        button.setAttribute("type", "button");
-        button.setAttribute("value", "Output State");
     },
 };
 /*  Axioms:
