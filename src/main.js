@@ -3,6 +3,8 @@ import { NOTE } from "./flatfolder/note.js";
 import { SVG } from "./flatfolder/svg.js";
 import { IO } from "./flatfolder/io.js";
 import { X } from "./flatfolder/conversion.js";
+import { SOLVER } from "./flatfolder/solver.js";
+import { CON } from "./flatfolder/constraints.js";
 
 window.onload = () => { MAIN.startup(); };  // entry point
 
@@ -27,10 +29,11 @@ const MAIN = {
         hover: 1,
     },
     radius: {
-        normal: 5,
-        hover: 10,
+        normal: 10,
+        hover: 20,
     },
     startup: () => {
+        CON.build();
         NOTE.clear_log();
         NOTE.start("*** Starting Flat-Folder ***");
         NOTE.time("Initializing interface");
@@ -43,7 +46,7 @@ const MAIN = {
         })) {
             main.setAttribute(k, v);
         }
-        for (const [i, id] of ["org"].entries()) {
+        for (const [i, id] of ["input", "output"].entries()) {
             const svg = document.getElementById(id);
             for (const [k, v] of Object.entries({
                 xmlns: SVG.NS,
@@ -93,13 +96,16 @@ const MAIN = {
     },
     update_fold: (FOLD, CELL) => {
         SVG.clear("export");
-        const fold_button = document.getElementById("fold_button");
-        fold_button.style.display = "none";
+        document.getElementById("fold_button").style.display = "none";
+        document.getElementById("state_controls").style.display = "none";
+        document.getElementById("state_config").style.display = "none";
         const flip = document.getElementById("flip").checked;
         const STATE = MAIN.FOLD_CELL_2_STATE(FOLD, CELL, flip);
         const {CP, SP} = CELL;
         const {Q, SD, Ccolor, Pvisible} = STATE;
-        MAIN.draw_state(CELL, STATE);
+        SVG.clear("output");
+        const svg = SVG.clear("input");
+        MAIN.draw_state(svg, CELL, STATE);
         const clicked = new Map();
         for (let i = 0; i < Q.length; ++i) {
             const el = document.getElementById(`fold_p${i}`);
@@ -218,7 +224,8 @@ const MAIN = {
         }
         FOLD.FO = FO;
         const STATE = MAIN.FOLD_CELL_2_STATE(FOLD, CELL, flip);
-        MAIN.draw_state(CELL, STATE);
+        const svg = SVG.clear("input");
+        MAIN.draw_state(svg, CELL, STATE);
         SVG.clear("lines");
         MAIN.clear_clicked(clicked);
         document.getElementById("lines").appendChild(el);
@@ -243,18 +250,18 @@ const MAIN = {
             if (clicked_groups.size == 0) {
                 MAIN.update_fold(FOLD_, CELL_);
             } else {
-                MAIN.write(MAIN.make_fold(V, FV_, FV, F_map, FG, FO_, clicked_groups));
+                const new_FOLD = MAIN.make_fold(V, FV_, FV, F_map, FG, FO_, clicked_groups, line);
             }
         };
     },
-    draw_state: (CELL, STATE) => {
+    draw_state: (svg, CELL, STATE) => {
         const {CP, SP} = CELL;
         const {Q, SD, Ccolor, Pvisible} = STATE;
-        const svg = SVG.clear("org");
-        const cells = CP.map(V => M.expand(V, Q));
+        const Q_ = M.normalize_points(Q);
+        const cells = CP.map(V => M.expand(V, Q_));
         SVG.draw_polygons(svg, cells, {
             id: "fold_c", fill: Ccolor, stroke: Ccolor});
-        const lines = SP.map((ps) => M.expand(ps, Q));
+        const lines = SP.map((ps) => M.expand(ps, Q_));
         SVG.draw_segments(svg, lines, {
             id: "fold_s_crease", stroke: MAIN.color.edge.F,
             filter: (i) => SD[i] == "C"});
@@ -262,52 +269,233 @@ const MAIN = {
             id: "fold_s_edge", stroke: MAIN.color.edge.B,
             filter: (i) => SD[i] == "B"});
         const Lsvg = SVG.append("g", svg, {id: "lines"});
-        SVG.draw_points(svg, Q, {
+        SVG.draw_points(svg, Q_, {
             id: "fold_p", filter: (i) => Pvisible[i],
             fill: MAIN.color.normal, r: MAIN.radius.normal,
             opacity: MAIN.opacity.normal,
         });
     },
-    make_fold: (V, FV_, FV, F_map_old, FG, FO_, clicked_groups) => {
-        const FVx = [];
+    make_fold: (V, FV_, FV, F_map_old, FG, FO_, clicked_groups, line) => {
         const F_map = F_map_old.map(() => []);
+        const FVx = [];
+        const FGx = [];
         for (let fi = 0; fi < F_map_old.length; ++fi) {
             const F = F_map_old[fi];
             if (F.length == 2) {
                 const [f1, f2] = F;
-                if (clicked_groups.has(FG[f1]) == clicked_groups.has(FG[f2])) {
+                const g1 = clicked_groups.has(FG[f1]);
+                const g2 = clicked_groups.has(FG[f2]);
+                if (g1 == g2) {
                     F_map[fi].push(FVx.length);
                     FVx.push(FV_[fi]);
+                    FGx.push(g1);
                 } else {
                     F_map[fi].push(FVx.length);
                     FVx.push(FV[f1]);
+                    FGx.push(g1);
                     F_map[fi].push(FVx.length);
                     FVx.push(FV[f2]);
+                    FGx.push(g2);
                 }
             } else if (F.length == 1) {
+                const g1 = clicked_groups.has(FG[F[0]]);
                 F_map[fi].push(FVx.length);
                 FVx.push(FV_[fi]);
+                FGx.push(g1);
             } else {
                 throw new Error("malformed FV2");
             }
         }
-        const [FOLD, CELL] = MAIN.V_FV_2_FOLD_CELL(V, FVx);
+        const [Vx, FVy] = MAIN.remove_unused_V_FV(V, FVx);
+        const Vy = Vx.map(() => undefined);
+        const [u, d] = line;
+        for (let fi = 0; fi < FVy.length; ++fi) {
+            const F = FVy[fi];
+            if (!FGx[fi]) { continue; }
+            for (const vi of F) {
+                if (Vy[vi] != undefined) { continue; }
+                const v = Vx[vi];
+                const d2 = M.dot(v, u) - d;
+                Vy[vi] = M.sub(v, M.mul(u, 2*d2));
+            }
+        }
+        for (let vi = 0; vi < Vy.length; ++vi) {
+            if (Vy[vi] == undefined) {
+                Vy[vi] = Vx[vi];
+            }
+        }
+        const [FOLD, CELL] = MAIN.V_FV_2_FOLD_CELL(Vy, FVy);
         const {Ff, EF} = FOLD;
-        const {P, PP, CP, CF, SE, SC, SP} = CELL;
-        const BF_set = new Set(X.CF_2_BF(CF));
+        const {P, PP, CP, FC, CF, SE, SC, SP} = CELL;
+        const BF = X.CF_2_BF(CF);
+        const BF_set = new Set(BF);
         const FO = [];
         for (const [f, g, o] of FO_) {
             for (const f_ of F_map[f]) {
                 for (const g_ of F_map[g]) {
                     const pair = M.encode_order_pair([f_, g_]);
                     if (BF_set.has(pair)) {
-                        FO.push([f_, g_, o]);
+                        if (!FGx[f_] && !FGx[g_]) {
+                            FO.push([f_, g_, o]);
+                        }
                     }
                 }
             }
         }
         FOLD.FO = FO;
+        NOTE.annotate(BF, "variables_faces");
+        NOTE.lap();
+        NOTE.time("Computing edge-edge overlaps");
+        const ExE = X.SE_2_ExE(SE);
+        NOTE.count(ExE, "edge-edge adjacencies");
+        NOTE.lap();
+        NOTE.time("Computing edge-face overlaps");
+        const ExF = X.SE_CF_SC_2_ExF(SE, CF, SC);
+        NOTE.count(ExF, "edge-face adjacencies");
+        NOTE.lap();
+        NOTE.time("Computing variables");
+        NOTE.time("Computing transitivity constraints");
+        const BT3 = X.FC_CF_BF_2_BT3(FC, CF, BF);
+        NOTE.count(BT3, "initial transitivity", 3);
+        NOTE.lap();
+        NOTE.time("Computing non-transitivity constraints");
+        const [BT0, BT1, BT2] = X.BF_EF_ExE_ExF_BT3_2_BT0_BT1_BT2(BF, EF, ExE, ExF, BT3);
+        NOTE.count(BT0, "taco-taco", 6);
+        NOTE.count(BT1, "taco-tortilla", 3);
+        NOTE.count(BT2, "tortilla-tortilla", 2);
+        NOTE.count(BT3, "independent transitivity", 3);
+        const BT = BF.map((F,i) => [BT0[i], BT1[i], BT2[i], BT3[i]]);
+        NOTE.time("*** Computing states ***");
+        const BA0 = MAIN.FO_Ff_BF_2_BA0(FO, Ff, BF);
+        const sol = SOLVER.solve(BF, BT, BA0, Infinity);
+        if (sol.length == 3) { // solve found unsatisfiable constraint
+            const [type, F, E] = sol;
+            const str = `Unable to resolve ${CON.names[type]} on faces [${F}]`;
+            NOTE.log(`   - ${str}`);
+            NOTE.log(`   - Faces participating in conflict: [${E}]`);
+            NOTE.time("Solve completed");
+            NOTE.count(0, "folded states");
+            NOTE.lap();
+            stop = Date.now();
+            NOTE.end();
+            return;
+        } // solve completed
+        const [GB, GA] = sol;
+        const n = (GA == undefined) ? 0 : GA.reduce((s, A) => {
+            return s*BigInt(A.length);
+        }, BigInt(1));
+        NOTE.time("Solve completed");
+        NOTE.count(n, "folded states");
+        NOTE.lap();
+        if (n > 0) {
+            const GI = GB.map(() => 0);
+            document.getElementById("state_controls").style.display = "inline";
+            const comp_select = SVG.clear("component_select");
+            for (const [i, _] of GB.entries()) {
+                const el = document.createElement("option");
+                el.setAttribute("value", `${i}`);
+                el.textContent = `${i}`;
+                comp_select.appendChild(el);
+            }
+            comp_select.onchange = (e) => {
+                NOTE.start("Changing component");
+                MAIN.update_component(FOLD, CELL, BF, GB, GA, GI);
+                NOTE.end();
+            };
+            NOTE.time("Computing state");
+            const edges = X.BF_GB_GA_GI_2_edges(BF, GB, GA, GI);
+            FOLD.FO = X.edges_Ff_2_FO(edges, Ff);
+            const flip = document.getElementById("flip").checked;
+            const STATE = MAIN.FOLD_CELL_2_STATE(FOLD, CELL, flip);
+            NOTE.time("Drawing fold");
+            const svg = SVG.clear("output");
+            MAIN.draw_state(svg, CELL, STATE, flip);
+            MAIN.update_component(FOLD, CELL, BF, GB, GA, GI);
+            MAIN.write(FOLD);
+        }
+        NOTE.lap();
+        stop = Date.now();
+        NOTE.end();
         return FOLD;
+    },
+    update_component: (FOLD, CELL, BF, GB, GA, GI) => {
+        SVG.clear("export");
+        const comp_select = document.getElementById("component_select");
+        const c = comp_select.value;
+        document.getElementById("state_config").style.display = "none";
+        const C = [];
+        if (c == "none") {
+        } else if (c == "all") {
+            for (const [i, _] of GA.entries()) {
+                C.push(i);
+            }
+        } else {
+            C.push(c);
+            const n = GA[c].length;
+            document.getElementById("state_config").style.display = "inline";
+            const state_label = document.getElementById("state_label");
+            const state_select = document.getElementById("state_select");
+            state_label.innerHTML = `${n} State${(n == 1) ? "" : "s"}`;
+            state_select.setAttribute("min", 1);
+            state_select.setAttribute("max", n);
+            state_select.value = GI[c] + 1;
+            state_select.onchange = (e) => {
+                NOTE.start("Computing new state");
+                let j = +e.target.value;
+                if (j < 1) { j = 1; }
+                if (j > n) { j = n; }
+                state_select.value = j;
+                GI[c] = j - 1;
+                NOTE.time("Computing state");
+                const edges = X.BF_GB_GA_GI_2_edges(BF, GB, GA, GI);
+                FOLD.FO = X.edges_Ff_2_FO(edges, FOLD.Ff);
+                const flip = document.getElementById("flip").checked;
+                const STATE = MAIN.FOLD_CELL_2_STATE(FOLD, CELL, flip);
+                NOTE.time("Drawing fold");
+                const svg = SVG.clear("output");
+                MAIN.draw_state(svg, CELL, STATE, flip);
+                MAIN.write(FOLD);
+            };
+        }
+    },
+    FO_Ff_BF_2_BA0: (FO, Ff, BF) => {
+        const BA_map = new Map();
+        for (let i = 0; i < FO.length; ++i) {
+            const [f, g, o] = FO[i];
+            const a1 = (Ff[g]
+                ? ((o > 0) ? 1 : 2)
+                : ((o > 0) ? 2 : 1)
+            );
+            const a2 = ((f < g)
+                ? a1
+                : ((a1 == 1) ? 2 : 1)
+            );
+            const s = M.encode_order_pair([f, g]);
+            BA_map.set(s, a2);
+        }
+        return BF.map(s => {
+            const out = BA_map.get(s);
+            return (out == undefined) ? 0 : out;
+        });
+    },
+    remove_unused_V_FV: (V, FV) => {
+        const V_ = [];
+        const n = V.length;
+        const Vuse = Array(n).fill(false);
+        const V_map = Array(n).fill(undefined);
+        for (const F of FV) {
+            for (const i of F) {
+                Vuse[i] = true;
+            }
+        }
+        for (let i = 0; i < n; ++i) {
+            if (Vuse[i]) {
+                V_map[i] = V_.length;
+                V_.push(V[i]);
+            }
+        }
+        const FV_ = FV.map(F => F.map(i => V_map[i]));
+        return [V_, FV_];
     },
     cell_over: (i, Ctop, FG) => {
         const g = FG[Ctop[i]];

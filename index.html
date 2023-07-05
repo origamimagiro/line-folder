@@ -11,15 +11,26 @@
         </span>
         <input type="file" id="import"/>
     </div>
-    <div>
+    <div style="display:inline-block">
         <label for="flip">Flip</label>
         <input type="checkbox" id="flip">
         <input type="button" id="fold_button" value="Fold" style="display:none">
-        <div id="export" style="display:inline">
+    </div>
+    <div id="fold_controls" style="display:inline">
+        <div id="state_controls" style="display:none">
+            <label for="component_select">Component</label>
+            <select id="component_select"></select>
+        </div>
+        <div id="state_config" style="display:none">
+            <label for="state_select" id="state_label"></label>
+            <input id="state_select" type="number"></input>
+        </div>
+        <div id="export" style="display:inline"></div>
     </div>
     <div>
         <svg id="main">
-            <svg id="org"></svg>
+            <svg id="input"></svg>
+            <svg id="output"></svg>
         </svg>
     </div>
     <div>© Jason S. Ku 2022</div>
