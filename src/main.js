@@ -978,4 +978,5 @@ const MAIN = {
  *  4)  3   | RSTP  | line perpendicular to segment through point
  *  5)  4   | P2STP | line folding point to segment through point
  *  6)  5   | P2SRS | line folding point to segment perpendicular to segment
+ *  7)  6   | PP2SS | line folding points to segments
  */
