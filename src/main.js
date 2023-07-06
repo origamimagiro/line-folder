@@ -71,7 +71,6 @@ const MAIN = {
         const [FOLD, CELL] = MAIN.V_FV_2_FOLD_CELL(V, FV);
         FOLD.FO = [];
         MAIN.update_fold(FOLD, CELL);
-        NOTE.end();
     },
     process_file: (e) => {
         NOTE.clear_log();
@@ -97,35 +96,22 @@ const MAIN = {
     update_fold: (FOLD, CELL) => {
         const slider = document.getElementById("slider");
         slider.style.display = "none";
-        slider.setAttribute("value", 0);
+        slider.value = 0;
         document.getElementById("export").style.display = "none";
         document.getElementById("replace").style.display = "none";
         document.getElementById("fold_button").style.display = "none";
         document.getElementById("state_controls").style.display = "none";
         document.getElementById("state_config").style.display = "none";
         const flip_el = document.getElementById("flip");
-        flip_el.onchange = (e) => {
+        SVG.clear("output");
+        const STATE = MAIN.FOLD_CELL_2_STATE(FOLD, CELL);
+        flip_el.onchange = () => {
             NOTE.start("Flipping model");
-            MAIN.update_fold(FOLD, CELL);
+            const svg = SVG.clear("input");
+            MAIN.draw_state(svg, FOLD, CELL, STATE);
             NOTE.end();
         };
-        const STATE = MAIN.FOLD_CELL_2_STATE(FOLD, CELL);
-        const {CP, SP} = CELL;
-        const {Q, SD, Ccolor, Pvisible} = STATE;
-        SVG.clear("output");
-        const svg = SVG.clear("input");
-        MAIN.draw_state(svg, FOLD, CELL, STATE);
-        const clicked = new Map();
-        for (let i = 0; i < Q.length; ++i) {
-            const el = document.getElementById(`fold_p${i}`);
-            if (el != undefined) {
-                el.onmouseover = () => MAIN.point_over(el);
-                el.onmouseout = () => MAIN.point_out(i, el, clicked);
-                el.onclick = () => MAIN.point_click(i, el, clicked,
-                    Q, FOLD, CELL);
-            }
-        }
-        NOTE.lap();
+        flip_el.onchange();
     },
     point_over: (el) => {
         el.setAttribute("fill", MAIN.color.select);
@@ -191,21 +177,21 @@ const MAIN = {
         el.setAttribute("stroke", MAIN.color.normal);
         el.setAttribute("stroke-width", MAIN.radius.normal);
     },
-    line_click: (el, clicked, line, FOLD_, CELL_) => {
+    line_click: (line, clicked, line_val, FOLD_, CELL_) => {
         const V_ = FOLD_.V;
         const FV_ = FOLD_.FV;
         const FO_ = FOLD_.FO;
         const eps_ = FOLD_.eps;
         const flip = document.getElementById("flip").checked;
         if (flip) {
-            const [u, d] = line;
+            const [u, d] = line_val;
             const o = [0.5, 0.5];
             const p = M.add(M.refX(M.sub(M.mul(u, d), o)), o);
             const v = M.refX(u);
             const d2 = M.dot(p, v);
-            line = [v, d2];
+            line_val = [v, d2];
         }
-        const [FV2, V, VD] = MAIN.FV_V_line_eps_2_FV2_V2_VD2(FV_, V_, line, eps_);
+        const [FV2, V, VD] = MAIN.FV_V_line_eps_2_FV2_V2_VD2(FV_, V_, line_val, eps_);
         const FV = [];
         const F_map = FV2.map(() => []);
         for (let fi = 0; fi < FV2.length; ++fi) {
@@ -218,7 +204,7 @@ const MAIN = {
         }
         const FG = MAIN.FV_VD_2_FG(FV, VD);
         const [FOLD, CELL] = MAIN.V_FV_2_FOLD_CELL(V, FV);
-        const {CF} = CELL;
+        const {BF, CF} = CELL;
         const BF_set = new Set(X.CF_2_BF(CF));
         const FO = [];
         for (const [f, g, o] of FO_) {
@@ -234,44 +220,44 @@ const MAIN = {
         FOLD.FO = FO;
         const STATE = MAIN.FOLD_CELL_2_STATE(FOLD, CELL);
         const svg = SVG.clear("input");
-        MAIN.draw_state(svg, FOLD, CELL, STATE);
-        SVG.clear("lines");
-        MAIN.clear_clicked(clicked);
-        document.getElementById("lines").appendChild(el);
-        el.onmouseout = () => {
-            el.setAttribute("stroke", MAIN.color.active);
-            el.setAttribute("stroke-width", MAIN.radius.normal);
-        };
-        el.onclick = () => MAIN.update_fold(FOLD_, CELL_);
-        el.setAttribute("stroke", MAIN.color.active);
-        el.setAttribute("stroke-width", MAIN.radius.normal);
+        const slider = document.getElementById("slider");
+        slider.value = 0;
+        slider.setAttribute("max", FV.length);
         const clicked_groups = new Set();
-        const {Ctop, Ccolor} = STATE;
-        for (let i = 0; i < CF.length; ++i) {
-            const el = document.getElementById(`fold_c${i}`);
-            el.onmouseover = () => MAIN.cell_over(i, Ctop, FG);
-            el.onmouseout = () => MAIN.cell_out(i, Ctop, FG, Ccolor, clicked_groups);
-            el.onclick = () => MAIN.cell_click(i, Ctop, FG, Ccolor, clicked_groups);
-        }
+        const LINE = {line, FG, clicked_groups, FOLD_, CELL_};
+        MAIN.draw_state(svg, FOLD, CELL, STATE, LINE);
         const fold_button = document.getElementById("fold_button");
         fold_button.style.display = "inline";
         fold_button.onclick = () => {
             if (clicked_groups.size == 0) {
                 MAIN.update_fold(FOLD_, CELL_);
             } else {
-                const new_FOLD = MAIN.make_fold(V, FV_, FV, F_map, FG, FO_, clicked_groups, line);
+                SVG.clear("input");
+                document.getElementById("slider").value = 0;
+                MAIN.draw_state(svg, FOLD, CELL, STATE);
+                svg.appendChild(line);
+                const new_FOLD = MAIN.make_fold(
+                    V, FV_, FV, F_map, FG, FO_, clicked_groups, line_val);
             }
         };
     },
-    draw_state: (svg, FOLD, CELL, STATE) => {
+    draw_state: (svg, FOLD, CELL, STATE, LINE) => {
         const {Ff, EF} = FOLD;
-        const {P, CP, CF, SP, SC, SE} = CELL;
-        const {Ctop, Ccolor, Pvisible, CD, L} = STATE;
+        const {P, PP, CP, CF, SP, SC, SE} = CELL;
+        const {Ctop, Ccolor, CD, L} = STATE;
         const flip = document.getElementById("flip").checked;
         const m = [0.5, 0.5];
         const Q = P.map(p => (flip ? M.add(M.refX(M.sub(p, m)), m) : p));
-        if (L != undefined) {
-            const val = +document.getElementById("slider").value;
+        const slider = document.getElementById("slider");
+        if (L == undefined) {
+            slider.style.display = "none";
+        } else {
+            slider.style.display = "inline";
+            slider.oninput = () => {
+                SVG.clear(svg.id);
+                MAIN.draw_state(svg, FOLD, CELL, STATE, LINE);
+            };
+            const val = +slider.value;
             const F_set = new Set(L);
             if (flip) { L.reverse(); }
             for (let i = L.length - 1; i >= val; --i) {
@@ -302,6 +288,7 @@ const MAIN = {
                 Ccolor[i] = out;
             }
         }
+        const Pvisible = MAIN.PP_Ctop_CP_SC_2_Pvisible(Q, PP, Ctop, CP, SC);
         const SD = X.EF_SE_SC_CF_CD_2_SD(EF, SE, SC, CF, Ctop);
         const Q_ = M.normalize_points(Q);
         const cells = CP.map(V => M.expand(V, Q_));
@@ -315,11 +302,45 @@ const MAIN = {
             id: "fold_s_edge", stroke: MAIN.color.edge.B,
             filter: (i) => SD[i] == "B"});
         const Lsvg = SVG.append("g", svg, {id: "lines"});
-        SVG.draw_points(svg, Q_, {
-            id: "fold_p", filter: (i) => Pvisible[i],
-            fill: MAIN.color.normal, r: MAIN.radius.normal,
-            opacity: MAIN.opacity.normal,
-        });
+        if (svg.id == "input") {
+            SVG.draw_points(svg, Q_, {
+                id: "fold_p", filter: (i) => Pvisible[i],
+                fill: MAIN.color.normal, r: MAIN.radius.normal,
+                opacity: MAIN.opacity.normal,
+            });
+            const clicked = new Map();
+            for (let i = 0; i < Q.length; ++i) {
+                const el = document.getElementById(`fold_p${i}`);
+                if (el != undefined) {
+                    el.onmouseover = () => MAIN.point_over(el);
+                    el.onmouseout = () => MAIN.point_out(i, el, clicked);
+                    el.onclick = () => MAIN.point_click(i, el, clicked,
+                        Q, FOLD, CELL);
+                }
+            }
+            if (LINE == undefined) { return; }
+            const {line, FG, clicked_groups, FOLD_, CELL_} = LINE;
+            SVG.clear("lines");
+            MAIN.clear_clicked(clicked);
+            document.getElementById("lines").appendChild(line);
+            line.onmouseout = () => {
+                line.setAttribute("stroke", MAIN.color.active);
+                line.setAttribute("stroke-width", MAIN.radius.normal);
+            };
+            line.onclick = () => MAIN.update_fold(FOLD_, CELL_);
+            line.setAttribute("stroke", MAIN.color.active);
+            line.setAttribute("stroke-width", MAIN.radius.normal);
+            const {Ctop, Ccolor} = STATE;
+            for (let i = 0; i < CF.length; ++i) {
+                const el = document.getElementById(`fold_c${i}`);
+                if (el == undefined) { continue; }
+                el.onmouseover = () => MAIN.cell_over(i, Ctop, FG);
+                el.onmouseout = () => MAIN.cell_out(i, Ctop, FG, Ccolor, clicked_groups);
+                el.onclick = () => MAIN.cell_click(i, Ctop, FG, Ccolor, clicked_groups);
+                const g = FG[Ctop[i]];
+                el.setAttribute("fill", clicked_groups.has(g) ? "yellow" : Ccolor[i]);
+            }
+        }
     },
     make_fold: (V, FV_, FV, F_map_old, FG, FO_, clicked_groups, line) => {
         const F_map = F_map_old.map(() => []);
@@ -372,8 +393,7 @@ const MAIN = {
         }
         const [FOLD, CELL] = MAIN.V_FV_2_FOLD_CELL(Vy, FVy);
         const {Ff, EF} = FOLD;
-        const {P, PP, CP, FC, CF, SE, SC, SP} = CELL;
-        const BF = X.CF_2_BF(CF);
+        const {P, PP, CP, FC, CF, SE, SC, SP, BF} = CELL;
         const BF_set = new Set(BF);
         const FO = [];
         for (const [f, g, o] of FO_) {
@@ -389,8 +409,6 @@ const MAIN = {
             }
         }
         FOLD.FO = FO;
-        NOTE.annotate(BF, "variables_faces");
-        NOTE.lap();
         NOTE.time("Computing edge-edge overlaps");
         const ExE = X.SE_2_ExE(SE);
         NOTE.count(ExE, "edge-edge adjacencies");
@@ -443,9 +461,10 @@ const MAIN = {
                 el.textContent = `${i}`;
                 comp_select.appendChild(el);
             }
+            const SOLUTION = {GB, GA, GI};
             comp_select.onchange = (e) => {
                 NOTE.start("Changing component");
-                MAIN.update_component(FOLD, CELL, BF, GB, GA, GI);
+                MAIN.update_component(FOLD, CELL, SOLUTION);
                 NOTE.end();
             };
             NOTE.time("Computing state");
@@ -454,17 +473,17 @@ const MAIN = {
             const STATE = MAIN.FOLD_CELL_2_STATE(FOLD, CELL);
             NOTE.time("Drawing fold");
             const svg = SVG.clear("output");
-            const slider = document.getElementById("slider");
-            slider.setAttribute("max", Ff.length);
             MAIN.draw_state(svg, FOLD, CELL, STATE);
-            MAIN.update_component(FOLD, CELL, BF, GB, GA, GI);
+            MAIN.update_component(FOLD, CELL, SOLUTION);
         }
         NOTE.lap();
         stop = Date.now();
         NOTE.end();
         return FOLD;
     },
-    update_component: (FOLD, CELL, BF, GB, GA, GI) => {
+    update_component: (FOLD, CELL, SOLUTION) => {
+        const {BF} = CELL;
+        const {GB, GA, GI} = SOLUTION;
         const comp_select = document.getElementById("component_select");
         const c = comp_select.value;
         document.getElementById("state_config").style.display = "none";
@@ -495,16 +514,6 @@ const MAIN = {
             MAIN.write(FOLD, CELL);
             const flip_el = document.getElementById("flip");
             flip_el.onchange = () => MAIN.flip_output(FOLD, CELL);
-            const slider = document.getElementById("slider");
-            if (STATE.L == undefined) {
-                slider.style.display = "none";
-            } else {
-                slider.style.display = "inline";
-                slider.oninput = () => {
-                    SVG.clear("output");
-                    MAIN.draw_state(svg, FOLD, CELL, STATE);
-                };
-            }
         };
         state_select.onchange();
     },
@@ -626,20 +635,27 @@ const MAIN = {
         NOTE.lap();
         NOTE.time("Making face-cell maps");
         const [CF, FC] = X.EF_FV_SP_SE_CP_SC_2_CF_FC(EF, FV, SP, SE, CP, SC);
+        const BF = X.CF_2_BF(CF);
+        NOTE.annotate(BF, "variables_faces");
+        NOTE.lap();
         const FOLD = {V, FV, EV, EF, FE, Ff, eps};
-        const CELL = {P, SP, SE, PP, CP, CS, SC, CF, FC};
+        const CELL = {P, SP, SE, PP, CP, CS, SC, CF, FC, BF};
         return [FOLD, CELL];
     },
     FOLD_CELL_2_STATE: (FOLD, CELL) => {
         const {EF, Ff, FO} = FOLD;
-        const {P, SE, PP, CP, SC, CF} = CELL;
+        const {P, SE, PP, CP, SC, CF, BF} = CELL;
         const m = [0.5, 0.5];
         const flip = document.getElementById("flip").checked;
         const Q = P.map(p => (flip ? M.add(M.refX(M.sub(p, m)), m) : p));
         const edges = FO.map(([f1, f2, o]) => {
             return M.encode((Ff[f2]*o >= 0) ? [f1, f2] : [f2, f1]);
         });
-        const L = MAIN.linearize(edges, Ff.length);
+        const L = MAIN.linearize(edges, Ff.length, BF);
+        const slider = document.getElementById("slider");
+        if (L != undefined) {
+            slider.setAttribute("max", Ff.length);
+        }
         const CD = X.CF_edges_flip_2_CD(CF, edges);
         const Ctop = CD.map(S => flip ? S[0] : S[S.length - 1]);
         const Ccolor = Ctop.map(d => {
@@ -648,10 +664,9 @@ const MAIN = {
             else                { return MAIN.color.face.bottom; }
         });
         const SD = X.EF_SE_SC_CF_CD_2_SD(EF, SE, SC, CF, Ctop);
-        const Pvisible = MAIN.PP_Ctop_CP_SC_2_Pvisible(Q, PP, Ctop, CP, SC);
-        return {Q, CD, Ctop, Ccolor, SD, Pvisible, L};
+        return {Q, CD, Ctop, Ccolor, SD, L};
     },
-    linearize: (edges, n) => {
+    linearize: (edges, n, BF) => {
         const Adj = Array(n).fill(0).map(() => []);
         for (const s of edges) {
             const [f1, f2] = M.decode(s);
