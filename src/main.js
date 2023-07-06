@@ -97,7 +97,7 @@ const MAIN = {
         const slider = document.getElementById("slider");
         slider.style.display = "none";
         slider.value = 0;
-        document.getElementById("export").style.display = "none";
+        document.getElementById("cycle").style.display = "none";
         document.getElementById("replace").style.display = "none";
         document.getElementById("fold_button").style.display = "none";
         document.getElementById("state_controls").style.display = "none";
@@ -105,6 +105,7 @@ const MAIN = {
         const flip_el = document.getElementById("flip");
         SVG.clear("output");
         const STATE = MAIN.FOLD_CELL_2_STATE(FOLD, CELL);
+        MAIN.write(FOLD, CELL);
         flip_el.onchange = () => {
             NOTE.start("Flipping model");
             const svg = SVG.clear("input");
@@ -238,6 +239,9 @@ const MAIN = {
                 svg.appendChild(line);
                 const new_FOLD = MAIN.make_fold(
                     V, FV_, FV, F_map, FG, FO_, clicked_groups, line_val);
+                if (new_FOLD == undefined) {
+                    MAIN.update_fold(FOLD_, CELL_);
+                }
             }
         };
     },
@@ -249,19 +253,29 @@ const MAIN = {
         const m = [0.5, 0.5];
         const Q = P.map(p => (flip ? M.add(M.refX(M.sub(p, m)), m) : p));
         const slider = document.getElementById("slider");
+        const cycle = document.getElementById("cycle");
         if (L == undefined) {
             slider.style.display = "none";
+            cycle.style.display = "inline";
         } else {
+            cycle.style.display = "none";
             slider.style.display = "inline";
             slider.oninput = () => {
                 SVG.clear(svg.id);
                 MAIN.draw_state(svg, FOLD, CELL, STATE, LINE);
             };
             const val = +slider.value;
-            const F_set = new Set(L);
+            const n = FOLD.FV.length;
+            const F_set = new Set();
+            for (let i = 0; i < n; ++i) {
+                F_set.add(i);
+            }
             if (flip) { L.reverse(); }
             for (let i = L.length - 1; i >= val; --i) {
-                F_set.delete(L[i]);
+                const layer = L[i];
+                for (const fi of layer) {
+                    F_set.delete(fi);
+                }
             }
             if (flip) { L.reverse(); }
             for (let i = 0; i < CD.length; ++i) {
@@ -451,31 +465,33 @@ const MAIN = {
         NOTE.time("Solve completed");
         NOTE.count(n, "folded states");
         NOTE.lap();
-        if (n > 0) {
-            const GI = GB.map(() => 0);
-            document.getElementById("state_controls").style.display = "inline";
-            const comp_select = SVG.clear("component_select");
-            for (const [i, _] of GB.entries()) {
-                const el = document.createElement("option");
-                el.setAttribute("value", `${i}`);
-                el.textContent = `${i}`;
-                comp_select.appendChild(el);
+        if (n == 0) { return; }
+        const GI = GB.map(() => 0);
+        document.getElementById("state_controls").style.display = "inline";
+        const comp_select = SVG.clear("component_select");
+        for (const [i, _] of GB.entries()) {
+            const el = document.createElement("option");
+            el.setAttribute("value", `${i}`);
+            el.textContent = `${i}`;
+            if (i == 1) {
+                el.setAttribute("selected", true);
             }
-            const SOLUTION = {GB, GA, GI};
-            comp_select.onchange = (e) => {
-                NOTE.start("Changing component");
-                MAIN.update_component(FOLD, CELL, SOLUTION);
-                NOTE.end();
-            };
-            NOTE.time("Computing state");
-            const edges = X.BF_GB_GA_GI_2_edges(BF, GB, GA, GI);
-            FOLD.FO = X.edges_Ff_2_FO(edges, Ff);
-            const STATE = MAIN.FOLD_CELL_2_STATE(FOLD, CELL);
-            NOTE.time("Drawing fold");
-            const svg = SVG.clear("output");
-            MAIN.draw_state(svg, FOLD, CELL, STATE);
-            MAIN.update_component(FOLD, CELL, SOLUTION);
+            comp_select.appendChild(el);
         }
+        const SOLUTION = {GB, GA, GI};
+        comp_select.onchange = () => {
+            NOTE.start("Changing component");
+            MAIN.update_component(FOLD, CELL, SOLUTION);
+            NOTE.end();
+        };
+        NOTE.time("Computing state");
+        const edges = X.BF_GB_GA_GI_2_edges(BF, GB, GA, GI);
+        FOLD.FO = X.edges_Ff_2_FO(edges, Ff);
+        const STATE = MAIN.FOLD_CELL_2_STATE(FOLD, CELL);
+        NOTE.time("Drawing fold");
+        const svg = SVG.clear("output");
+        MAIN.draw_state(svg, FOLD, CELL, STATE);
+        MAIN.update_component(FOLD, CELL, SOLUTION);
         NOTE.lap();
         stop = Date.now();
         NOTE.end();
@@ -514,6 +530,13 @@ const MAIN = {
             MAIN.write(FOLD, CELL);
             const flip_el = document.getElementById("flip");
             flip_el.onchange = () => MAIN.flip_output(FOLD, CELL);
+            const replace = document.getElementById("replace");
+            replace.style.display = "inline";
+            replace.onclick = () => {
+                FOLD.V = M.normalize_points(FOLD.V);
+                CELL.P = M.normalize_points(CELL.P);
+                MAIN.update_fold(FOLD, CELL);
+            };
         };
         state_select.onchange();
     },
@@ -651,10 +674,10 @@ const MAIN = {
         const edges = FO.map(([f1, f2, o]) => {
             return M.encode((Ff[f2]*o >= 0) ? [f1, f2] : [f2, f1]);
         });
-        const L = MAIN.linearize(edges, Ff.length, BF);
+        const L = MAIN.linearize(edges, Ff.length);
         const slider = document.getElementById("slider");
         if (L != undefined) {
-            slider.setAttribute("max", Ff.length);
+            slider.setAttribute("max", L.length);
         }
         const CD = X.CF_edges_flip_2_CD(CF, edges);
         const Ctop = CD.map(S => flip ? S[0] : S[S.length - 1]);
@@ -666,7 +689,7 @@ const MAIN = {
         const SD = X.EF_SE_SC_CF_CD_2_SD(EF, SE, SC, CF, Ctop);
         return {Q, CD, Ctop, Ccolor, SD, L};
     },
-    linearize: (edges, n, BF) => {
+    linearize: (edges, n) => {
         const Adj = Array(n).fill(0).map(() => []);
         for (const s of edges) {
             const [f1, f2] = M.decode(s);
@@ -695,10 +718,36 @@ const MAIN = {
         for (const s of edges) {
             const [f1, f2] = M.decode(s);
             if (idx_map[f1] > idx_map[f2]) {
-                return undefined;
+                return undefined; // cycle
             }
         }
-        return L;
+        for (let i = 0; i < n; ++i) {
+            seen[i] = false;
+        }
+        const layers = [];
+        for (let i = 0; i < n; ++i) {
+            const fi = L[i];
+            if (seen[fi]) { continue; }
+            seen[fi] = true;
+            const layer = [fi];
+            const Adj_set = new Set();
+            for (const fj of Adj[fi]) {
+                Adj_set.add(fj);
+            }
+            for (let j = i + 1; j < L.length; ++j) {
+                const fj = L[j];
+                if (seen[fj]) { continue; }
+                if (!Adj_set.has(fj)) {
+                    seen[fj] = true;
+                    layer.push(fj);
+                }
+                for (const fk of Adj[fj]) {
+                    Adj_set.add(fk);
+                }
+            }
+            layers.push(layer);
+        }
+        return layers;
     },
     FV_V_2_Ff: (FV, V) => FV.map(fV => (M.polygon_area2(fV.map(i => V[i])) < 0)),
     PP_Ctop_CP_SC_2_Pvisible: (P, PP, Ctop, CP, SC) => {
@@ -916,18 +965,9 @@ const MAIN = {
         const data = new Blob([JSON.stringify(export_FOLD, undefined, 2)], {
             type: "application/json"});
         const link = document.getElementById("export_anchor");
-        link.setAttribute("download", `${name}_state.fold`);
+        link.setAttribute("download", `state.fold`);
         link.setAttribute("href", window.URL.createObjectURL(data));
         link.style.textDecoration = "none";
-        const ex_button = document.getElementById("export");
-        ex_button.style.display = "inline";
-        const replace = document.getElementById("replace");
-        replace.style.display = "inline";
-        replace.onclick = () => {
-            FOLD.V = M.normalize_points(FOLD.V);
-            CELL.P = M.normalize_points(CELL.P);
-            MAIN.update_fold(FOLD, CELL);
-        };
     },
 };
 /*  Axioms:
