@@ -317,42 +317,42 @@ const MAIN = {
             filter: (i) => SD[i] == "B"});
         const Lsvg = SVG.append("g", svg, {id: "lines"});
         if (svg.id == "input") {
-            SVG.draw_points(svg, Q_, {
-                id: "fold_p", filter: (i) => Pvisible[i],
-                fill: MAIN.color.normal, r: MAIN.radius.normal,
-                opacity: MAIN.opacity.normal,
-            });
-            const clicked = new Map();
-            for (let i = 0; i < Q.length; ++i) {
-                const el = document.getElementById(`fold_p${i}`);
-                if (el != undefined) {
-                    el.onmouseover = () => MAIN.point_over(el);
-                    el.onmouseout = () => MAIN.point_out(i, el, clicked);
-                    el.onclick = () => MAIN.point_click(i, el, clicked,
-                        Q, FOLD, CELL);
+            if (LINE == undefined) {
+                SVG.draw_points(svg, Q_, {
+                    id: "fold_p", filter: (i) => Pvisible[i],
+                    fill: MAIN.color.normal, r: MAIN.radius.normal,
+                    opacity: MAIN.opacity.normal,
+                });
+                const clicked = new Map();
+                for (let i = 0; i < Q.length; ++i) {
+                    const el = document.getElementById(`fold_p${i}`);
+                    if (el != undefined) {
+                        el.onmouseover = () => MAIN.point_over(el);
+                        el.onmouseout = () => MAIN.point_out(i, el, clicked);
+                        el.onclick = () => MAIN.point_click(i, el, clicked,
+                            Q, FOLD, CELL);
+                    }
                 }
-            }
-            if (LINE == undefined) { return; }
-            const {line, FG, clicked_groups, FOLD_, CELL_} = LINE;
-            SVG.clear("lines");
-            MAIN.clear_clicked(clicked);
-            document.getElementById("lines").appendChild(line);
-            line.onmouseout = () => {
+            } else {
+                const {line, FG, clicked_groups, FOLD_, CELL_} = LINE;
+                Lsvg.appendChild(line);
+                line.onmouseout = () => {
+                    line.setAttribute("stroke", MAIN.color.active);
+                    line.setAttribute("stroke-width", MAIN.radius.normal);
+                };
+                line.onclick = () => MAIN.update_fold(FOLD_, CELL_);
                 line.setAttribute("stroke", MAIN.color.active);
                 line.setAttribute("stroke-width", MAIN.radius.normal);
-            };
-            line.onclick = () => MAIN.update_fold(FOLD_, CELL_);
-            line.setAttribute("stroke", MAIN.color.active);
-            line.setAttribute("stroke-width", MAIN.radius.normal);
-            const {Ctop, Ccolor} = STATE;
-            for (let i = 0; i < CF.length; ++i) {
-                const el = document.getElementById(`fold_c${i}`);
-                if (el == undefined) { continue; }
-                el.onmouseover = () => MAIN.cell_over(i, Ctop, FG);
-                el.onmouseout = () => MAIN.cell_out(i, Ctop, FG, Ccolor, clicked_groups);
-                el.onclick = () => MAIN.cell_click(i, Ctop, FG, Ccolor, clicked_groups);
-                const g = FG[Ctop[i]];
-                el.setAttribute("fill", clicked_groups.has(g) ? "yellow" : Ccolor[i]);
+                const {Ctop, Ccolor} = STATE;
+                for (let i = 0; i < CF.length; ++i) {
+                    const el = document.getElementById(`fold_c${i}`);
+                    if (el == undefined) { continue; }
+                    el.onmouseover = () => MAIN.cell_over(i, Ctop, FG);
+                    el.onmouseout = () => MAIN.cell_out(i, Ctop, FG, Ccolor, clicked_groups);
+                    el.onclick = () => MAIN.cell_click(i, Ctop, FG, Ccolor, clicked_groups);
+                    const g = FG[Ctop[i]];
+                    el.setAttribute("fill", clicked_groups.has(g) ? "yellow" : Ccolor[i]);
+                }
             }
         }
     },
