@@ -672,7 +672,7 @@ const MAIN = {
         const flip = document.getElementById("flip").checked;
         const Q = P.map(p => (flip ? M.add(M.refX(M.sub(p, m)), m) : p));
         const edges = FO.map(([f1, f2, o]) => {
-            return M.encode((Ff[f2]*o >= 0) ? [f1, f2] : [f2, f1]);
+            return M.encode(((Ff[f2] ? 1 : -1)*o >= 0) ? [f1, f2] : [f2, f1]);
         });
         const L = MAIN.linearize(edges, Ff.length);
         const slider = document.getElementById("slider");
