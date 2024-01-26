@@ -140,25 +140,23 @@ const MAIN = {
             MAIN.point_over(el);
             return;
         }
-        const svg = document.getElementById("lines");
+        const svg = SVG.clear("lines");
         clicked.set(i, el);
         NOTE.time(`Clicked set is: [${Array.from(clicked.keys())}]`);
         el.setAttribute("fill", MAIN.color.select);
-        SVG.clear("lines");
         const L = MAIN.get_lines(Array.from(clicked.keys()).map(i => Q[i]));
         if (L.length > 0) {
-            const g = SVG.draw_segments(svg, L.map(l => MAIN.line_2_coords(l)), {
-                id: "line", stroke: MAIN.color.normal,
+            SVG.draw_segments(svg, L.map(l => MAIN.line_2_coords(l)), {
+                id: true, stroke: MAIN.color.normal,
                 stroke_width: MAIN.radius.normal,
             });
-            for (let j = 0; j < g.children.length; ++j) {
-                const el = g.children[j];
+            for (let j = 0; j < svg.children.length; ++j) {
+                const el = svg.children[j];
                 el.onclick = () => MAIN.line_click(el, clicked, L[j], FOLD, CELL);
                 el.onmouseover = () => MAIN.line_over(el);
                 el.onmouseout = () => MAIN.line_out(el);
             }
         } else if (clicked.size > 1) {
-            SVG.clear("lines");
             MAIN.clear_clicked(clicked);
             MAIN.point_over(el);
         }
@@ -306,20 +304,24 @@ const MAIN = {
         const SD = X.EF_SE_SC_CF_CD_2_SD(EF, SE, SC, CF, Ctop);
         const Q_ = M.normalize_points(Q);
         const cells = CP.map(V => M.expand(V, Q_));
-        SVG.draw_polygons(svg, cells, {
-            id: "fold_c", fill: Ccolor, stroke: Ccolor});
+        const fold_c = SVG.append("g", svg, {id: "fold_c"});
+        const fold_s_crease = SVG.append("g", svg, {id: "fold_s_crease"});
+        const fold_s_edge = SVG.append("g", svg, {id: "fold_s_edge"});
+        const fold_p = SVG.append("g", svg, {id: "fold_p"});
+        SVG.draw_polygons(fold_c, cells, {
+            id: true, fill: Ccolor, stroke: Ccolor});
         const lines = SP.map((ps) => M.expand(ps, Q_));
-        SVG.draw_segments(svg, lines, {
-            id: "fold_s_crease", stroke: MAIN.color.edge.F,
+        SVG.draw_segments(fold_s_crease, lines, {
+            id: true, stroke: MAIN.color.edge.F,
             filter: (i) => SD[i] == "C"});
-        SVG.draw_segments(svg, lines, {
-            id: "fold_s_edge", stroke: MAIN.color.edge.B,
+        SVG.draw_segments(fold_s_edge, lines, {
+            id: true, stroke: MAIN.color.edge.B,
             filter: (i) => SD[i] == "B"});
         const Lsvg = SVG.append("g", svg, {id: "lines"});
         if (svg.id == "input") {
             if (LINE == undefined) {
-                SVG.draw_points(svg, Q_, {
-                    id: "fold_p", filter: (i) => Pvisible[i],
+                SVG.draw_points(fold_p, Q_, {
+                    id: true, filter: (i) => Pvisible[i],
                     fill: MAIN.color.normal, r: MAIN.radius.normal,
                     opacity: MAIN.opacity.normal,
                 });

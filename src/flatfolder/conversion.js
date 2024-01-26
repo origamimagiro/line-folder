@@ -617,12 +617,6 @@ export const X = {     // CONVERSION
                 (CF[C[1]].length > 0)
             ) {
                 const [f1, f2] = C.map(c => CD[c]);
-                if ((f1 == undefined) && (f2 == undefined)) {
-                    return "N";
-                }
-                if ((f1 == undefined) || (f2 == undefined)) {
-                    return "B";
-                }
                 if (f1 == f2) {
                     return "N";
                 }
@@ -636,7 +630,88 @@ export const X = {     // CONVERSION
                     }
                 }
             }
-            return (CD[C[0]] == undefined) ? "N" : "B";
+            return "B";
         });
+    },
+    tops_CP_EF_Ff_P_2_UP_UF_SP_SD: (tops, CP, EF, Ff, P) => {
+        const FC = Ff.map(() => []);
+        for (let ci = 0; ci < tops.length; ++ci) {
+            const fi = tops[ci];
+            if (fi == undefined) { continue; }
+            FC[fi].push(ci);
+        }
+        const UP = [];
+        const UF = [];
+        for (let fi = 0; fi < FC.length; ++fi) {
+            const C = FC[fi];
+            if (C.length == 0) { continue; }
+            const Adj = P.map(() => new Set());
+            for (const ci of C) {
+                const P_ = CP[ci];
+                let pi = P_[P_.length - 1];
+                for (const pj of P_) {
+                    const A = Adj[pj];
+                    if (A.has(pi)) {
+                        A.delete(pi);
+                    } else {
+                        Adj[pi].add(pj);
+                    }
+                    pi = pj;
+                }
+            }
+            const Q = [];
+            for (let i = 0; i < Adj.length; ++i) {
+                if (Adj[i].size > 0) { Q.push(i); }
+            }
+            for (const start of Q) {
+                if (Adj[start].size == 0) { continue; }
+                const out = [];
+                let u = start;
+                do {
+                    out.push(u);
+                    let v;
+                    for (v of Adj[u]) {
+                        break;
+                    }
+                    Adj[u].delete(v);
+                    u = v;
+                } while (u != start);
+                UP.push(out);
+                UF.push(fi);
+            }
+        }
+        const PU = new Map();
+        for (let ui = 0; ui < UP.length; ++ui) {
+            const P = UP[ui];
+            let pi = P[P.length - 1];
+            for (const pj of P) {
+                PU.set(`${pi},${pj}`, ui);
+                pi = pj;
+            }
+        }
+        const SP = [];
+        const SD = [];
+        const check = new Set();
+        for (const F of EF) {
+            if (F.length != 2) { continue; }
+            const [i, j] = F;
+            if (Ff[i] == Ff[j]) {
+                check.add(M.encode_order_pair([i, j]));
+            }
+        }
+        for (const [k, ui] of PU) {
+            const [pi, pj] = k.split(",").map(c => +c);
+            const k2 = `${pj},${pi}`;
+            const uj = PU.get(k2);
+            if (uj == undefined) {
+                SP.push([pi, pj]);
+                SD.push("B");
+            } else if (pi < pj) {
+                SP.push([pi, pj]);
+                const key = M.encode_order_pair([UF[ui], UF[uj]]);
+                SD.push(check.has(key) ? "C" : "B");
+            }
+        }
+        return [UP, UF, SP, SD];
     },
 };
