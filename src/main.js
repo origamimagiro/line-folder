@@ -23,6 +23,7 @@ const MAIN = {
             F: "lightgray",
             B: "black",
         },
+        rand: ["lightgreen", "lightpink"],
     },
     opacity: {
         normal: 0.01,
@@ -42,11 +43,11 @@ const MAIN = {
         for (const [k, v] of Object.entries({
             xmlns: SVG.NS,
             style: `background: ${MAIN.color.background}`,
-            viewBox: [0, 0, 2*s, s].join(" "),
+            viewBox: [0, 0, 3*s, s].join(" "),
         })) {
             main.setAttribute(k, v);
         }
-        for (const [i, id] of ["input", "output"].entries()) {
+        for (const [i, id] of ["cp", "input", "output"].entries()) {
             const svg = document.getElementById(id);
             for (const [k, v] of Object.entries({
                 xmlns: SVG.NS,
@@ -105,6 +106,7 @@ const MAIN = {
         const flip_el = document.getElementById("flip");
         SVG.clear("output");
         const STATE = MAIN.FOLD_CELL_2_STATE(FOLD, CELL);
+        MAIN.update_cp(FOLD, STATE);
         MAIN.write(FOLD, CELL);
         flip_el.onchange = () => {
             NOTE.start("Flipping model");
@@ -113,6 +115,90 @@ const MAIN = {
             NOTE.end();
         };
         flip_el.onchange();
+    },
+    update_cp: (FOLD, STATE, LINE) => {
+        const {V, FV, EV, EF, Ff, FO, FOO} = FOLD;
+        const {edges} = STATE;
+        const edge_map = new Set(edges);
+        const EA = EF.map(F => {
+            if (F.length != 2) { return "B"; }
+            const [i, j] = F;
+            if (edge_map.has(M.encode([i, j]))) { return Ff[i] ? "M" : "V"; }
+            if (edge_map.has(M.encode([j, i]))) { return Ff[i] ? "V" : "M"; }
+            return "F";
+        });
+        const Vf = FOLD.Vf ??
+            M.normalize_points(X.V_FV_EV_EA_2_Vf_Ff(V, FV, EV, EA)[0]);
+        FOLD.Vf = Vf;
+        const cp = SVG.clear("cp");
+        const faces = FV.map(F => M.expand(F, Vf));
+        const lines = EV.map(E => M.expand(E, Vf));
+        const colors = EA.map(a => {
+            if (a == "B") { return "black"; }
+            if (a == "M") { return "blue"; }
+            if (a == "V") { return "red"; }
+            if (a == "F") { return "gray"; }
+        });
+        const g1 = SVG.append("g", cp, {id: "flat_f"});
+        SVG.draw_polygons(g1, faces, {fill: "white", id: true});
+        const g2 = SVG.append("g", cp, {id: "flat_e"});
+        SVG.draw_segments(g2, lines, {stroke: colors, id: true});
+        if (FOO != undefined) {
+            const H = new Map();
+            for (const [i, j, o] of FO) {
+                H.set(M.encode([i, j]), o);
+                H.set(M.encode([j, i]), (Ff[i] == Ff[j]) ? -o : o);
+            }
+            const changed = new Set();
+            const FM = FV.map(() => false);
+            for (const [i, j, o] of FOO) {
+                FM[i] = true;
+                FM[j] = true;
+                if (H.get(M.encode([i, j])) != o) {
+                    changed.add(M.encode_order_pair([i, j]));
+                }
+            }
+            const FF = FV.map(() => []);
+            let start;
+            for (const F of EF) {
+                if (F.length != 2) { continue; }
+                const [f, g] = F;
+                if (!FM[f] || !FM[g]) { continue; }
+                FF[f].push(g);
+                FF[g].push(f);
+                start = f;
+            }
+            if (start != undefined) {
+                const FL = FV.map(() => undefined);
+                FL[start] = true;
+                const Q = [start];
+                let j = 0;
+                while (j < Q.length) {
+                    const f = Q[j]; ++j;
+                    const v = FL[f];
+                    for (const g of FF[f]) {
+                        if (FL[g] == undefined) {
+                            Q.push(g);
+                            FL[g] = changed.has(M.encode_order_pair([f, g])) ? !v : v;
+                        }
+                    }
+                }
+                for (let i = 0; i < FL.length; ++i) {
+                    if (FL[i] == undefined) { continue; }
+                    const el = document.getElementById(`flat_f${i}`);
+                    el.setAttribute("fill", MAIN.color.rand[
+                        FL[i] % MAIN.color.rand.length
+                    ]);
+                }
+            }
+        }
+        if (LINE == undefined) { return; }
+        const clicked = LINE.clicked_groups;
+        const FG = LINE.FG;
+        for (let i = 0; i < FG.length; ++i) {
+            const el = document.getElementById(`flat_f${i}`);
+            el.setAttribute("fill", clicked.has(FG[i]) ? "yellow" : "white");
+        }
     },
     point_over: (el) => {
         el.setAttribute("fill", MAIN.color.select);
@@ -178,6 +264,7 @@ const MAIN = {
     },
     line_click: (line, clicked, line_val, FOLD_, CELL_) => {
         const V_ = FOLD_.V;
+        const Vf_ = FOLD_.Vf;
         const FV_ = FOLD_.FV;
         const FO_ = FOLD_.FO;
         const eps_ = FOLD_.eps;
@@ -190,7 +277,8 @@ const MAIN = {
             const d2 = M.dot(p, v);
             line_val = [v, d2];
         }
-        const [FV2, V, VD] = MAIN.FV_V_line_eps_2_FV2_V2_VD2(FV_, V_, line_val, eps_);
+        const [FV2, V, Vf, VD] = MAIN.FV_V_Vf_line_eps_2_FV2_V2_Vf2_VD2(
+            FV_, V_, Vf_, line_val, eps_);
         const FV = [];
         const F_map = FV2.map(() => []);
         for (let fi = 0; fi < FV2.length; ++fi) {
@@ -203,6 +291,7 @@ const MAIN = {
         }
         const FG = MAIN.FV_VD_2_FG(FV, VD);
         const [FOLD, CELL] = MAIN.V_FV_2_FOLD_CELL(V, FV);
+        FOLD.Vf = Vf;
         const {BF, CF} = CELL;
         const BF_set = new Set(X.CF_2_BF(CF));
         const FO = [];
@@ -252,6 +341,7 @@ const MAIN = {
         const Q = P.map(p => (flip ? M.add(M.refX(M.sub(p, m)), m) : p));
         const slider = document.getElementById("slider");
         const cycle = document.getElementById("cycle");
+        MAIN.update_cp(FOLD, STATE, LINE);
         if (L == undefined) {
             slider.style.display = "none";
             cycle.style.display = "inline";
@@ -349,7 +439,7 @@ const MAIN = {
                 for (let i = 0; i < CF.length; ++i) {
                     const el = document.getElementById(`fold_c${i}`);
                     if (el == undefined) { continue; }
-                    el.onmouseover = () => MAIN.cell_over(i, Ctop, FG);
+                    el.onmouseover = () => MAIN.cell_over(i, Ctop, FG, CF);
                     el.onmouseout = () => MAIN.cell_out(i, Ctop, FG, Ccolor, clicked_groups);
                     el.onclick = () => MAIN.cell_click(i, Ctop, FG, Ccolor, clicked_groups);
                     const g = FG[Ctop[i]];
@@ -425,6 +515,20 @@ const MAIN = {
             }
         }
         FOLD.FO = FO;
+        const FOO = [];
+        for (const [f, g, o] of FO_) {
+            for (const f_ of F_map[f]) {
+                for (const g_ of F_map[g]) {
+                    const pair = M.encode_order_pair([f_, g_]);
+                    if (BF_set.has(pair)) {
+                        if (FGx[f_] && FGx[g_]) {
+                            FOO.push([f_, g_, o]);
+                        }
+                    }
+                }
+            }
+        }
+        FOLD.FOO = FOO;
         NOTE.time("Computing edge-edge overlaps");
         const ExE = X.SE_2_ExE(SE);
         NOTE.count(ExE, "edge-edge adjacencies");
@@ -537,6 +641,7 @@ const MAIN = {
             replace.onclick = () => {
                 FOLD.V = M.normalize_points(FOLD.V);
                 CELL.P = M.normalize_points(CELL.P);
+                FOLD.FOO = undefined;
                 MAIN.update_fold(FOLD, CELL);
             };
         };
@@ -588,11 +693,17 @@ const MAIN = {
         const FV_ = FV.map(F => F.map(i => V_map[i]));
         return [V_, FV_];
     },
-    cell_over: (i, Ctop, FG) => {
+    cell_over: (i, Ctop, FG, CF) => {
         const g = FG[Ctop[i]];
         for (let j = 0; j < Ctop.length; ++j) {
             if (g == FG[Ctop[j]]) {
                 const el = document.getElementById(`fold_c${j}`);
+                el.setAttribute("fill", "lightpink");
+            }
+        }
+        for (let j = 0; j < FG.length; ++j) {
+            if (g == FG[j]) {
+                const el = document.getElementById(`flat_f${j}`);
                 el.setAttribute("fill", "lightpink");
             }
         }
@@ -604,6 +715,13 @@ const MAIN = {
             if (g1 == g2) {
                 const el = document.getElementById(`fold_c${j}`);
                 el.setAttribute("fill", clicked.has(g2) ? "yellow" : Ccolor[j]);
+            }
+        }
+        for (let j = 0; j < FG.length; ++j) {
+            const g2 = FG[j];
+            if (g1 == g2) {
+                const el = document.getElementById(`flat_f${j}`);
+                el.setAttribute("fill", clicked.has(g2) ? "yellow" : "white");
             }
         }
     },
@@ -689,7 +807,7 @@ const MAIN = {
             else                { return MAIN.color.face.bottom; }
         });
         const SD = X.EF_SE_SC_CF_CD_2_SD(EF, SE, SC, CF, Ctop);
-        return {Q, CD, Ctop, Ccolor, SD, L};
+        return {Q, CD, Ctop, Ccolor, SD, L, edges};
     },
     linearize: (edges, n) => {
         const Adj = Array(n).fill(0).map(() => []);
@@ -857,12 +975,13 @@ const MAIN = {
         const p2 = M.sub(p, off);
         return [p1, p2];
     },
-    FV_V_line_eps_2_FV2_V2_VD2: (FV, V, line, eps) => {
+    FV_V_Vf_line_eps_2_FV2_V2_Vf2_VD2: (FV, V, Vf, line, eps) => {
         // assumes convex faces (or line divides a face into at most two pieces
         const [u, d] = line;
         const [a, b] = MAIN.line_2_coords(line);
         const nV = V.length;
         const V2 = V.map(v => v);
+        const Vf2 = Vf.map(v => v);
         const VD = V.map(v => {
             const dv = M.dot(u, v) - d;
             return (Math.abs(dv) <= eps) ? 0 : dv;
@@ -906,9 +1025,16 @@ const MAIN = {
                     let xi = EV_map.get(s);
                     if (xi == undefined) {
                         const x = M.intersect([V[v1], V[v2]], [a, b], eps);
+                        const xf = M.add(Vf[v1],
+                            M.mul(
+                                M.sub(Vf[v2], Vf[v1]),
+                                M.dist(x, V[v1])/M.dist(V[v1], V[v2])
+                            )
+                        );
                         xi = V2.length;
                         EV_map.set(s, xi);
                         V2.push(x);
+                        Vf2.push(xf);
                         VD.push(0);
                     }
                     pair[0].push(xi);
@@ -917,7 +1043,7 @@ const MAIN = {
             }
             return pair;
         });
-        return [FV2, V2, VD];
+        return [FV2, V2, Vf2, VD];
     },
     FV_VD_2_FG: (FV, VD) => {
         const EF_map = new Map();
