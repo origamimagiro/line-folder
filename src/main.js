@@ -159,19 +159,19 @@ const MAIN = {
                 }
             }
             const FF = FV.map(() => []);
-            let start;
             for (const F of EF) {
                 if (F.length != 2) { continue; }
                 const [f, g] = F;
                 if (!FM[f] || !FM[g]) { continue; }
                 FF[f].push(g);
                 FF[g].push(f);
-                start = f;
             }
-            if (start != undefined) {
-                const FL = FV.map(() => undefined);
-                FL[start] = true;
-                const Q = [start];
+            const FL = FV.map(() => undefined);
+            for (let i = 0; i < FL.length; ++i) {
+                if (!FM[i]) { continue; }
+                if (FL[i] != undefined) { continue; }
+                FL[i] = true;
+                const Q = [i];
                 let j = 0;
                 while (j < Q.length) {
                     const f = Q[j]; ++j;
@@ -183,13 +183,13 @@ const MAIN = {
                         }
                     }
                 }
-                for (let i = 0; i < FL.length; ++i) {
-                    if (FL[i] == undefined) { continue; }
-                    const el = document.getElementById(`flat_f${i}`);
-                    el.setAttribute("fill", MAIN.color.rand[
-                        FL[i] % MAIN.color.rand.length
-                    ]);
-                }
+            }
+            for (let i = 0; i < FL.length; ++i) {
+                if (FL[i] == undefined) { continue; }
+                const el = document.getElementById(`flat_f${i}`);
+                el.setAttribute("fill", MAIN.color.rand[
+                    FL[i] % MAIN.color.rand.length
+                ]);
             }
         }
         if (LINE == undefined) { return; }
