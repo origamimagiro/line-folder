@@ -23,7 +23,10 @@ const MAIN = {
             F: "lightgray",
             B: "black",
         },
-        rand: ["lightgreen", "lightpink"],
+        rand: [
+            "lightpink", "lightgreen", "lightskyblue", "gold",
+            "lightsalmon", "powderblue", "lavender", "sandybrown"
+        ],
     },
     opacity: {
         normal: 0.01,
@@ -108,16 +111,15 @@ const MAIN = {
         const STATE = MAIN.FOLD_CELL_2_STATE(FOLD, CELL);
         MAIN.update_cp(FOLD, STATE);
         MAIN.write(FOLD, CELL);
+        MAIN.draw_state(SVG.clear("input"), FOLD, CELL, STATE);
         flip_el.onchange = () => {
             NOTE.start("Flipping model");
-            const svg = SVG.clear("input");
-            MAIN.draw_state(svg, FOLD, CELL, STATE);
+            MAIN.draw_state(SVG.clear("input"), FOLD, CELL, STATE);
             NOTE.end();
         };
-        flip_el.onchange();
     },
     update_cp: (FOLD, STATE, LINE) => {
-        const {V, FV, EV, EF, Ff, FO, FOO} = FOLD;
+        const {V, FV, EV, EF, Ff, FO, FOO, FM} = FOLD;
         const {edges} = STATE;
         const edge_map = new Set(edges);
         const EA = EF.map(F => {
@@ -143,17 +145,14 @@ const MAIN = {
         SVG.draw_polygons(g1, faces, {fill: "white", id: true});
         const g2 = SVG.append("g", cp, {id: "flat_e"});
         SVG.draw_segments(g2, lines, {stroke: colors, id: true});
-        if (FOO != undefined) {
+        if (FM != undefined) {
             const H = new Map();
             for (const [i, j, o] of FO) {
                 H.set(M.encode([i, j]), o);
                 H.set(M.encode([j, i]), (Ff[i] == Ff[j]) ? -o : o);
             }
             const changed = new Set();
-            const FM = FV.map(() => false);
             for (const [i, j, o] of FOO) {
-                FM[i] = true;
-                FM[j] = true;
                 if (H.get(M.encode([i, j])) != o) {
                     changed.add(M.encode_order_pair([i, j]));
                 }
@@ -167,22 +166,27 @@ const MAIN = {
                 FF[g].push(f);
             }
             const FL = FV.map(() => undefined);
+            let ci = 0;
             for (let i = 0; i < FL.length; ++i) {
                 if (!FM[i]) { continue; }
                 if (FL[i] != undefined) { continue; }
-                FL[i] = true;
+                FL[i] = ci;
                 const Q = [i];
                 let j = 0;
                 while (j < Q.length) {
                     const f = Q[j]; ++j;
                     const v = FL[f];
                     for (const g of FF[f]) {
-                        if (FL[g] == undefined) {
+                        if (
+                            (FL[g] == undefined) &&
+                            !changed.has(M.encode_order_pair([f, g]))
+                        ) {
                             Q.push(g);
-                            FL[g] = changed.has(M.encode_order_pair([f, g])) ? !v : v;
+                            FL[g] = ci;
                         }
                     }
                 }
+                ++ci;
             }
             for (let i = 0; i < FL.length; ++i) {
                 if (FL[i] == undefined) { continue; }
@@ -450,8 +454,9 @@ const MAIN = {
     },
     make_fold: (V, FV_, FV, F_map_old, FG, FO_, clicked_groups, line) => {
         const F_map = F_map_old.map(() => []);
+        // map only clicked regions
         const FVx = [];
-        const FGx = [];
+        const FM = [];
         for (let fi = 0; fi < F_map_old.length; ++fi) {
             const F = F_map_old[fi];
             if (F.length == 2) {
@@ -461,20 +466,20 @@ const MAIN = {
                 if (g1 == g2) {
                     F_map[fi].push(FVx.length);
                     FVx.push(FV_[fi]);
-                    FGx.push(g1);
+                    FM.push(g1);
                 } else {
                     F_map[fi].push(FVx.length);
                     FVx.push(FV[f1]);
-                    FGx.push(g1);
+                    FM.push(g1);
                     F_map[fi].push(FVx.length);
                     FVx.push(FV[f2]);
-                    FGx.push(g2);
+                    FM.push(g2);
                 }
             } else if (F.length == 1) {
                 const g1 = clicked_groups.has(FG[F[0]]);
                 F_map[fi].push(FVx.length);
                 FVx.push(FV_[fi]);
-                FGx.push(g1);
+                FM.push(g1);
             } else {
                 throw new Error("malformed FV2");
             }
@@ -484,7 +489,7 @@ const MAIN = {
         const [u, d] = line;
         for (let fi = 0; fi < FVy.length; ++fi) {
             const F = FVy[fi];
-            if (!FGx[fi]) { continue; }
+            if (!FM[fi]) { continue; }
             for (const vi of F) {
                 if (Vy[vi] != undefined) { continue; }
                 const v = Vx[vi];
@@ -507,27 +512,27 @@ const MAIN = {
                 for (const g_ of F_map[g]) {
                     const pair = M.encode_order_pair([f_, g_]);
                     if (BF_set.has(pair)) {
-                        if (!FGx[f_] && !FGx[g_]) {
+                        if (!FM[f_] && !FM[g_]) {
                             FO.push([f_, g_, o]);
                         }
                     }
                 }
             }
         }
-        FOLD.FO = FO;
         const FOO = [];
         for (const [f, g, o] of FO_) {
             for (const f_ of F_map[f]) {
                 for (const g_ of F_map[g]) {
                     const pair = M.encode_order_pair([f_, g_]);
                     if (BF_set.has(pair)) {
-                        if (FGx[f_] && FGx[g_]) {
+                        if (FM[f_] && FM[g_]) {
                             FOO.push([f_, g_, o]);
                         }
                     }
                 }
             }
         }
+        FOLD.FM = FM;
         FOLD.FOO = FOO;
         NOTE.time("Computing edge-edge overlaps");
         const ExE = X.SE_2_ExE(SE);
@@ -642,6 +647,7 @@ const MAIN = {
                 FOLD.V = M.normalize_points(FOLD.V);
                 CELL.P = M.normalize_points(CELL.P);
                 FOLD.FOO = undefined;
+                FOLD.FM = undefined;
                 MAIN.update_fold(FOLD, CELL);
             };
         };
