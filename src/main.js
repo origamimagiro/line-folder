@@ -88,14 +88,8 @@ const MAIN = {
             return;
         }
         NOTE.time(`Importing from file ${file_name}`);
-        const [V_org, FV, FO] = MAIN.FOLD_2_V_FV_FO(doc);
-        const V = M.normalize_points(V_org);
-        for (const property of [V, FV, FO]) {
-            if (property == undefined) { return; }
-        }
-        const [FOLD, CELL] = MAIN.V_FV_2_FOLD_CELL(V, FV);
-        FOLD.FO = FO;
-        MAIN.update_fold([[FOLD, CELL]]);
+        const FS = MAIN.FOLD_2_FS(doc);
+        MAIN.update_fold(FS);
     },
     update_fold: (FS) => {
         const [FOLD, CELL] = FS[FS.length - 1];
@@ -749,10 +743,13 @@ const MAIN = {
             clicked.add(g);
         }
     },
-    FOLD_2_V_FV_FO: (doc) => {
+    FOLD_2_FS: (doc) => {
         const ex = JSON.parse(doc);
-        const properties = ["vertices_coords", "faces_vertices", "faceOrders"];
-        return properties.map(property => {
+        const properties = [
+            "vertices_coords", "faces_vertices",
+            "faceOrders", "file_frames",
+        ];
+        const [V_org, FV, FO, frames] = properties.map(property => {
             const val = ex[property];
             if (val == undefined) {
                 NOTE.time(`FOLD file must contain ${property}, but not found`);
@@ -760,6 +757,23 @@ const MAIN = {
             }
             return val;
         });
+        const FS = [];
+        if (frames == undefined) {
+            const V = M.normalize_points(V_org);
+            const [FOLD, CELL] = MAIN.V_FV_2_FOLD_CELL(V, FV);
+            FOLD.FO = FO;
+            FS.push([FOLD, CELL]);
+        } else {
+            for (const frame of frames) {
+                const [FOLD, CELL] = MAIN.V_FV_2_FOLD_CELL(
+                    frame.vertices_coords,
+                    frame.faces_vertices
+                );
+                FOLD.FO = frame.faceOrders;
+                FS.push([FOLD, CELL]);
+            }
+        }
+        return FS;
     },
     V_FV_2_FOLD_CELL: (V, FV) => {
         const Ff = MAIN.FV_V_2_Ff(FV, V);
