@@ -74,7 +74,7 @@ const MAIN = {
         const FV = [[0, 2, 3, 1]];
         const [FOLD, CELL] = MAIN.V_FV_2_FOLD_CELL(V, FV);
         FOLD.FO = [];
-        MAIN.update_fold(FOLD, CELL);
+        MAIN.update_fold([[FOLD, CELL]]);
     },
     process_file: (e) => {
         NOTE.clear_log();
@@ -95,9 +95,10 @@ const MAIN = {
         }
         const [FOLD, CELL] = MAIN.V_FV_2_FOLD_CELL(V, FV);
         FOLD.FO = FO;
-        MAIN.update_fold(FOLD, CELL);
+        MAIN.update_fold([[FOLD, CELL]]);
     },
-    update_fold: (FOLD, CELL) => {
+    update_fold: (FS) => {
+        const [FOLD, CELL] = FS[FS.length - 1];
         const slider = document.getElementById("slider");
         slider.style.display = "none";
         slider.value = 0;
@@ -110,11 +111,11 @@ const MAIN = {
         SVG.clear("output");
         const STATE = MAIN.FOLD_CELL_2_STATE(FOLD, CELL);
         MAIN.update_cp(FOLD, STATE);
-        MAIN.write(FOLD, CELL);
-        MAIN.draw_state(SVG.clear("input"), FOLD, CELL, STATE);
+        MAIN.write(FS);
+        MAIN.draw_state(SVG.clear("input"), FS, STATE);
         flip_el.onchange = () => {
             NOTE.start("Flipping model");
-            MAIN.draw_state(SVG.clear("input"), FOLD, CELL, STATE);
+            MAIN.draw_state(SVG.clear("input"), FS, STATE);
             NOTE.end();
         };
     },
@@ -221,7 +222,8 @@ const MAIN = {
             : MAIN.color.active
         );
     },
-    point_click: (i, el, clicked, Q, FOLD, CELL) => {
+    point_click: (i, el, clicked, Q, FS) => {
+        const [FOLD, CELL] = FS[FS.length - 1];
         const {P} = CELL;
         NOTE.time(`Clicked point ${i}`);
         if (clicked.has(i) || (clicked.size >= 4)) {
@@ -242,7 +244,7 @@ const MAIN = {
             });
             for (let j = 0; j < svg.children.length; ++j) {
                 const el = svg.children[j];
-                el.onclick = () => MAIN.line_click(el, clicked, L[j], FOLD, CELL);
+                el.onclick = () => MAIN.line_click(el, clicked, L[j], FS);
                 el.onmouseover = () => MAIN.line_over(el);
                 el.onmouseout = () => MAIN.line_out(el);
             }
@@ -266,7 +268,8 @@ const MAIN = {
         el.setAttribute("stroke", MAIN.color.normal);
         el.setAttribute("stroke-width", MAIN.radius.normal);
     },
-    line_click: (line, clicked, line_val, FOLD_, CELL_) => {
+    line_click: (line, clicked, line_val, FS) => {
+        const [FOLD_, CELL_] = FS[FS.length - 1];
         const V_ = FOLD_.V;
         const Vf_ = FOLD_.Vf;
         const FV_ = FOLD_.FV;
@@ -316,27 +319,31 @@ const MAIN = {
         slider.value = 0;
         slider.setAttribute("max", FV.length);
         const clicked_groups = new Set();
-        const LINE = {line, FG, clicked_groups, FOLD_, CELL_};
-        MAIN.draw_state(svg, FOLD, CELL, STATE, LINE);
+        const LINE = {line, FG, clicked_groups};
+        FS.push([FOLD, CELL]);
+        MAIN.draw_state(svg, FS, STATE, LINE);
         const fold_button = document.getElementById("fold_button");
         fold_button.style.display = "inline";
         fold_button.onclick = () => {
             if (clicked_groups.size == 0) {
-                MAIN.update_fold(FOLD_, CELL_);
+                FS.pop();
+                MAIN.update_fold(FS);
             } else {
                 SVG.clear("input");
                 document.getElementById("slider").value = 0;
-                MAIN.draw_state(svg, FOLD, CELL, STATE);
+                MAIN.draw_state(svg, FS, STATE);
                 svg.appendChild(line);
                 const new_FOLD = MAIN.make_fold(
-                    V, FV_, FV, F_map, FG, FO_, clicked_groups, line_val);
+                    V, FV_, FV, F_map, FG, FO_, clicked_groups, line_val, FS);
                 if (new_FOLD == undefined) {
-                    MAIN.update_fold(FOLD_, CELL_);
+                    FS.pop();
+                    MAIN.update_fold(FS);
                 }
             }
         };
     },
-    draw_state: (svg, FOLD, CELL, STATE, LINE) => {
+    draw_state: (svg, FS, STATE, LINE) => {
+        const [FOLD, CELL] = FS[FS.length - 1];
         const {Ff, EF} = FOLD;
         const {P, PP, CP, CF, SP, SC, SE} = CELL;
         const {Ctop, Ccolor, CD, L} = STATE;
@@ -354,7 +361,7 @@ const MAIN = {
             slider.style.display = "inline";
             slider.oninput = () => {
                 SVG.clear(svg.id);
-                MAIN.draw_state(svg, FOLD, CELL, STATE, LINE);
+                MAIN.draw_state(svg, FS, STATE, LINE);
             };
             const val = +slider.value;
             const n = FOLD.FV.length;
@@ -425,18 +432,17 @@ const MAIN = {
                     if (el != undefined) {
                         el.onmouseover = () => MAIN.point_over(el);
                         el.onmouseout = () => MAIN.point_out(i, el, clicked);
-                        el.onclick = () => MAIN.point_click(i, el, clicked,
-                            Q, FOLD, CELL);
+                        el.onclick = () => MAIN.point_click(i, el, clicked, Q, FS);
                     }
                 }
             } else {
-                const {line, FG, clicked_groups, FOLD_, CELL_} = LINE;
+                const {line, FG, clicked_groups} = LINE;
                 Lsvg.appendChild(line);
                 line.onmouseout = () => {
                     line.setAttribute("stroke", MAIN.color.active);
                     line.setAttribute("stroke-width", MAIN.radius.normal);
                 };
-                line.onclick = () => MAIN.update_fold(FOLD_, CELL_);
+                line.onclick = () => { FS.pop(); MAIN.update_fold(FS); }
                 line.setAttribute("stroke", MAIN.color.active);
                 line.setAttribute("stroke-width", MAIN.radius.normal);
                 const {Ctop, Ccolor} = STATE;
@@ -452,7 +458,7 @@ const MAIN = {
             }
         }
     },
-    make_fold: (V, FV_, FV, F_map_old, FG, FO_, clicked_groups, line) => {
+    make_fold: (V, FV_, FV, F_map_old, FG, FO_, clicked_groups, line, FS) => {
         const F_map = F_map_old.map(() => []);
         // map only clicked regions
         const FVx = [];
@@ -590,9 +596,10 @@ const MAIN = {
             comp_select.appendChild(el);
         }
         const SOLUTION = {GB, GA, GI};
+        FS.push([FOLD, CELL]);
         comp_select.onchange = () => {
             NOTE.start("Changing component");
-            MAIN.update_component(FOLD, CELL, SOLUTION);
+            MAIN.update_component(FS, SOLUTION);
             NOTE.end();
         };
         NOTE.time("Computing state");
@@ -601,14 +608,15 @@ const MAIN = {
         const STATE = MAIN.FOLD_CELL_2_STATE(FOLD, CELL);
         NOTE.time("Drawing fold");
         const svg = SVG.clear("output");
-        MAIN.draw_state(svg, FOLD, CELL, STATE);
-        MAIN.update_component(FOLD, CELL, SOLUTION);
+        MAIN.draw_state(svg, FS, STATE);
+        MAIN.update_component(FS, SOLUTION);
         NOTE.lap();
         stop = Date.now();
         NOTE.end();
         return FOLD;
     },
-    update_component: (FOLD, CELL, SOLUTION) => {
+    update_component: (FS, SOLUTION) => {
+        const [FOLD, CELL] = FS[FS.length - 1];
         const {BF} = CELL;
         const {GB, GA, GI} = SOLUTION;
         const comp_select = document.getElementById("component_select");
@@ -637,18 +645,20 @@ const MAIN = {
             const STATE = MAIN.FOLD_CELL_2_STATE(FOLD, CELL);
             NOTE.time("Drawing fold");
             const svg = SVG.clear("output");
-            MAIN.draw_state(svg, FOLD, CELL, STATE);
-            MAIN.write(FOLD, CELL);
+            MAIN.draw_state(svg, FS, STATE);
             const flip_el = document.getElementById("flip");
             flip_el.onchange = () => MAIN.flip_output(FOLD, CELL);
             const replace = document.getElementById("replace");
             replace.style.display = "inline";
             replace.onclick = () => {
-                FOLD.V = M.normalize_points(FOLD.V);
-                CELL.P = M.normalize_points(CELL.P);
+                // FOLD.V = M.normalize_points(FOLD.V);
+                // CELL.P = M.normalize_points(CELL.P);
                 FOLD.FOO = undefined;
                 FOLD.FM = undefined;
-                MAIN.update_fold(FOLD, CELL);
+                const last = FS.pop();
+                FS.pop();
+                FS.push(last);
+                MAIN.update_fold(FS);
             };
         };
         state_select.onchange();
@@ -1081,8 +1091,21 @@ const MAIN = {
         }
         return FG;
     },
-    write: (FOLD, CELL) => {
-        const {V, Vf, EV, EA, FV, FO} = FOLD;
+    write: (FS) => {
+        const frames = [];
+        for (const [FOLD, _] of FS) {
+            const {V, Vf, EV, FV, FO} = FOLD;
+            const frame_FOLD = {
+                vertices_coords:  V,
+                "vertices_lf:coords": Vf,
+                edges_vertices:   EV,
+                faces_vertices:   FV,
+                faceOrders:       FO,
+            };
+            frames.push(frame_FOLD);
+        }
+        const [FOLD, CELL] = FS[FS.length - 1];
+        const {V, Vf, EV, FV, FO} = FOLD;
         const path = document.getElementById("import").value.split("\\");
         const name = path[path.length - 1].split(".")[0];
         const export_FOLD = {
@@ -1091,10 +1114,11 @@ const MAIN = {
             file_title: `${name}_state`,
             file_classes: ["singleModel"],
             vertices_coords:  V,
+            "vertices_lf:coords": Vf,
             edges_vertices:   EV,
-            edges_assignment: EA,
             faces_vertices:   FV,
             faceOrders:       FO,
+            file_frames:  frames,
         };
         const data = new Blob([JSON.stringify(export_FOLD, undefined, 2)], {
             type: "application/json"});
