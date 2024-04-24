@@ -655,6 +655,9 @@ const MAIN = {
                 CELL.P = M.normalize_points(CELL.P);
                 FOLD.FOO = undefined;
                 FOLD.FM = undefined;
+                const last = FS.pop();
+                FS.pop();
+                FS.push(last);
                 MAIN.update_fold(FS);
             };
         };
