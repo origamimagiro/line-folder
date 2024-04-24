@@ -436,7 +436,7 @@ const MAIN = {
                     line.setAttribute("stroke", MAIN.color.active);
                     line.setAttribute("stroke-width", MAIN.radius.normal);
                 };
-                line.onclick = () => { FS.pop(); MAIN.update_fold(FS); }
+                line.onclick = () => { FS.pop(); FS.pop(); MAIN.update_fold(FS); }
                 line.setAttribute("stroke", MAIN.color.active);
                 line.setAttribute("stroke-width", MAIN.radius.normal);
                 const {Ctop, Ccolor} = STATE;
@@ -641,7 +641,7 @@ const MAIN = {
             const svg = SVG.clear("output");
             MAIN.draw_state(svg, FS, STATE);
             const flip_el = document.getElementById("flip");
-            flip_el.onchange = () => MAIN.flip_output(FOLD, CELL);
+            flip_el.onchange = () => MAIN.flip_output(FS);
             const replace = document.getElementById("replace");
             replace.style.display = "inline";
             replace.onclick = () => {
@@ -657,11 +657,12 @@ const MAIN = {
         };
         state_select.onchange();
     },
-    flip_output: (FOLD, CELL) => {
+    flip_output: (FS) => {
         NOTE.start("Flipping model");
         const svg = SVG.clear("output");
+        const [FOLD, CELL] = FS[FS.length - 1];
         const STATE = MAIN.FOLD_CELL_2_STATE(FOLD, CELL);
-        MAIN.draw_state(svg, FOLD, CELL, STATE);
+        MAIN.draw_state(svg, FS, STATE);
         NOTE.end();
     },
     FO_Ff_BF_2_BA0: (FO, Ff, BF) => {
