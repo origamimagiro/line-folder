@@ -651,13 +651,10 @@ const MAIN = {
             const replace = document.getElementById("replace");
             replace.style.display = "inline";
             replace.onclick = () => {
-                // FOLD.V = M.normalize_points(FOLD.V);
-                // CELL.P = M.normalize_points(CELL.P);
+                FOLD.V = M.normalize_points(FOLD.V);
+                CELL.P = M.normalize_points(CELL.P);
                 FOLD.FOO = undefined;
                 FOLD.FM = undefined;
-                const last = FS.pop();
-                FS.pop();
-                FS.push(last);
                 MAIN.update_fold(FS);
             };
         };
@@ -1094,18 +1091,17 @@ const MAIN = {
     write: (FS) => {
         const frames = [];
         for (const [FOLD, _] of FS) {
-            const {V, Vf, EV, FV, FO} = FOLD;
+            const {V, Vf, FV, FO} = FOLD;
             const frame_FOLD = {
                 vertices_coords:  V,
                 "vertices_lf:coords": Vf,
-                edges_vertices:   EV,
                 faces_vertices:   FV,
                 faceOrders:       FO,
             };
             frames.push(frame_FOLD);
         }
         const [FOLD, CELL] = FS[FS.length - 1];
-        const {V, Vf, EV, FV, FO} = FOLD;
+        const {V, Vf, FV, FO} = FOLD;
         const path = document.getElementById("import").value.split("\\");
         const name = path[path.length - 1].split(".")[0];
         const export_FOLD = {
@@ -1115,7 +1111,6 @@ const MAIN = {
             file_classes: ["singleModel"],
             vertices_coords:  V,
             "vertices_lf:coords": Vf,
-            edges_vertices:   EV,
             faces_vertices:   FV,
             faceOrders:       FO,
             file_frames:  frames,
