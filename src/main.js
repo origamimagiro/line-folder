@@ -790,6 +790,8 @@ const MAIN = {
                 );
                 FOLD.FL = frame["faces_lf:group"];
                 FOLD.FO = frame.faceOrders;
+                FOLD.line = frame["lf:line"];
+                FOLD.points = frame["lf:points"];
                 FS.push([FOLD, CELL]);
             }
         }
