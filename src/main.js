@@ -329,6 +329,8 @@ const MAIN = {
         const clicked_groups = new Set();
         const LINE = {line, FG, clicked_groups};
         FS.push([FOLD, CELL]);
+        FOLD.line = line_val;
+        FOLD.points = Array.from(clicked.keys());
         MAIN.draw_state(svg, FS, STATE, LINE);
         const fold_button = document.getElementById("fold_button");
         fold_button.style.display = "inline";
@@ -664,7 +666,9 @@ const MAIN = {
                 FOLD.FOO = undefined;
                 FOLD.FM = undefined;
                 const last = FS.pop();
-                FS.pop();
+                const prev = FS.pop();
+                last[0].line = prev[0].line;
+                last[0].points = prev[0].points;
                 FS.push(last);
                 MAIN.update_fold(FS);
             };
@@ -1130,6 +1134,8 @@ const MAIN = {
                 faces_vertices:   FV,
                 faceOrders:       FO,
                 "faces_lf:group": FL,
+                "lf:line": FOLD.line,
+                "lf:points": FOLD.points,
             };
             frames.push(frame_FOLD);
         }
@@ -1145,7 +1151,6 @@ const MAIN = {
             vertices_coords:  V,
             faces_vertices:   FV,
             faceOrders:       FO,
-            "faces_lf:group": FL,
             file_frames:  frames,
         };
         const data = new Blob([JSON.stringify(export_FOLD, undefined, 2)], {
