@@ -93,6 +93,11 @@ const MAIN = {
     },
     update_fold: (FS) => {
         const [FOLD, CELL] = FS[FS.length - 1];
+        document.getElementById("back_button").onclick = () => {
+            if (FS.length == 1) { return; }
+            FS.pop();
+            MAIN.update_fold(FS);
+        };
         const slider = document.getElementById("slider");
         slider.style.display = "none";
         slider.value = 0;
@@ -771,6 +776,7 @@ const MAIN = {
                     frame.vertices_coords,
                     frame.faces_vertices
                 );
+                FOLD.FL = frame["faces_lf:group"];
                 FOLD.FO = frame.faceOrders;
                 FS.push([FOLD, CELL]);
             }
