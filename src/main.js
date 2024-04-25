@@ -129,9 +129,17 @@ const MAIN = {
             if (edge_map.has(M.encode([j, i]))) { return Ff[i] ? "V" : "M"; }
             return "F";
         });
-        const Vf = FOLD.Vf ??
-            M.normalize_points(X.V_FV_EV_EA_2_Vf_Ff(V, FV, EV, EA)[0]);
-        FOLD.Vf = Vf;
+        FOLD.Vf = X.V_FV_EV_EA_2_Vf_Ff(V, FV, EV, EA)[0];
+        if (M.polygon_area2(M.expand(FOLD.FV[0], FOLD.Vf)) < 0) {
+            FOLD.Vf = FOLD.Vf.map(v => M.add(M.refY(v), [0, 1]));
+        }
+        const v0 = FOLD.Vf[0];
+        FOLD.Vf = FOLD.Vf.map(p => M.sub(p, v0));
+        const [c1, s1] = FOLD.Vf[1];
+        FOLD.Vf = FOLD.Vf.map(p => M.rotate_cos_sin(p, c1, -s1));
+        FOLD.Vf = FOLD.Vf.map(p => M.rotate_cos_sin(p, 0, 1));
+        FOLD.Vf = M.normalize_points(FOLD.Vf);
+        const Vf = FOLD.Vf;
         const cp = SVG.clear("cp");
         const faces = FV.map(F => M.expand(F, Vf));
         const lines = EV.map(E => M.expand(E, Vf));
