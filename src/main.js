@@ -190,6 +190,7 @@ const MAIN = {
                     FL[i] % MAIN.color.rand.length
                 ]);
             }
+            FOLD.FL = FL.map(l => l ?? -1);
         }
         if (LINE == undefined) { return; }
         const clicked = LINE.clicked_groups;
@@ -1109,17 +1110,17 @@ const MAIN = {
     write: (FS) => {
         const frames = [];
         for (const [FOLD, _] of FS) {
-            const {V, Vf, FV, FO} = FOLD;
+            const {V, Vf, FV, FO, FL} = FOLD;
             const frame_FOLD = {
                 vertices_coords:  V,
-                "vertices_lf:coords": Vf,
                 faces_vertices:   FV,
                 faceOrders:       FO,
+                "faces_lf:group": FL,
             };
             frames.push(frame_FOLD);
         }
         const [FOLD, CELL] = FS[FS.length - 1];
-        const {V, Vf, FV, FO} = FOLD;
+        const {V, Vf, FV, FO, FL} = FOLD;
         const path = document.getElementById("import").value.split("\\");
         const name = path[path.length - 1].split(".")[0];
         const export_FOLD = {
@@ -1128,9 +1129,9 @@ const MAIN = {
             file_title: `${name}_state`,
             file_classes: ["singleModel"],
             vertices_coords:  V,
-            "vertices_lf:coords": Vf,
             faces_vertices:   FV,
             faceOrders:       FO,
+            "faces_lf:group": FL,
             file_frames:  frames,
         };
         const data = new Blob([JSON.stringify(export_FOLD, undefined, 2)], {
