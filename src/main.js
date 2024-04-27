@@ -63,6 +63,13 @@ const MAIN = {
                 svg.setAttribute(k, v);
             }
         }
+        const type_select = document.getElementById("type_select");
+        for (const option of ["crease", "simple", "all"]) {
+            const el = document.createElement("option");
+            el.setAttribute("value", option);
+            el.textContent = option;
+            type_select.appendChild(el);
+        }
         document.getElementById("import").onchange = (e) => {
             if (e.target.files.length > 0) {
                 const file_reader = new FileReader();
@@ -343,11 +350,15 @@ const MAIN = {
                 document.getElementById("slider").value = 0;
                 MAIN.draw_state(svg, FS, STATE);
                 svg.appendChild(line);
-                const new_FOLD = MAIN.make_fold(
-                    V, FV_, FV, F_map, FG, FO_, clicked_groups, line_val, FS);
-                if (new_FOLD == undefined) {
-                    FS.pop();
+                if (document.getElementById("type_select").value == "crease") {
                     MAIN.update_fold(FS);
+                } else {
+                    const new_FOLD = MAIN.make_fold(
+                        V, FV_, FV, F_map, FG, FO_, clicked_groups, line_val, FS);
+                    if (new_FOLD == undefined) {
+                        FS.pop();
+                        MAIN.update_fold(FS);
+                    }
                 }
             }
         };
@@ -522,14 +533,21 @@ const MAIN = {
         const {Ff, EF} = FOLD;
         const {P, PP, CP, FC, CF, SE, SC, SP, BF} = CELL;
         const BF_set = new Set(BF);
+        const type = document.getElementById("type_select").value;
         const FO = [];
         for (const [f, g, o] of FO_) {
             for (const f_ of F_map[f]) {
                 for (const g_ of F_map[g]) {
                     const pair = M.encode_order_pair([f_, g_]);
                     if (BF_set.has(pair)) {
-                        if (!FM[f_] && !FM[g_]) {
-                            FO.push([f_, g_, o]);
+                        if (type == "simple") {
+                            if (FM[f_] == FM[g_]) {
+                                FO.push([f_, g_, o]);
+                            }
+                        } else {
+                            if (!FM[f_] && !FM[g_]) {
+                                FO.push([f_, g_, o]);
+                            }
                         }
                     }
                 }
