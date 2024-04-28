@@ -64,7 +64,7 @@ const MAIN = {
             }
         }
         const type_select = document.getElementById("type_select");
-        for (const option of ["crease", "pure", "all"]) {
+        for (const option of ["pure", "all"]) {
             const el = document.createElement("option");
             el.setAttribute("value", option);
             el.textContent = option;
@@ -350,16 +350,8 @@ const MAIN = {
                 document.getElementById("slider").value = 0;
                 MAIN.draw_state(svg, FS, STATE);
                 svg.appendChild(line);
-                if (document.getElementById("type_select").value == "crease") {
-                    MAIN.update_fold(FS);
-                } else {
-                    const new_FOLD = MAIN.make_fold(
-                        V, FV_, FV, F_map, FG, FO_, clicked_groups, line_val, FS);
-                    if (new_FOLD == undefined) {
-                        FS.pop();
-                        MAIN.update_fold(FS);
-                    }
-                }
+                const new_FOLD = MAIN.make_fold(
+                    V, FV_, FV, F_map, FG, FO_, clicked_groups, line_val, FS);
             }
         };
     },
@@ -463,7 +455,7 @@ const MAIN = {
                     line.setAttribute("stroke", MAIN.color.active);
                     line.setAttribute("stroke-width", MAIN.radius.normal);
                 };
-                line.onclick = () => { FS.pop(); FS.pop(); MAIN.update_fold(FS); }
+                line.onclick = () => { MAIN.update_fold(FS); }
                 line.setAttribute("stroke", MAIN.color.active);
                 line.setAttribute("stroke-width", MAIN.radius.normal);
                 const {Ctop, Ccolor} = STATE;
@@ -601,6 +593,8 @@ const MAIN = {
             NOTE.lap();
             stop = Date.now();
             NOTE.end();
+            FS.pop();
+            MAIN.update_fold(FS);
             return;
         } // solve completed
         const [GB, GA] = sol;
@@ -610,7 +604,12 @@ const MAIN = {
         NOTE.time("Solve completed");
         NOTE.count(n, "folded states");
         NOTE.lap();
-        if (n == 0) { return; }
+        if (n == 0) {
+            NOTE.end();
+            FS.pop();
+            MAIN.update_fold(FS);
+            return;
+        }
         const GI = GB.map(() => 0);
         document.getElementById("state_controls").style.display = "inline";
         const comp_select = SVG.clear("component_select");
@@ -641,7 +640,6 @@ const MAIN = {
         NOTE.lap();
         stop = Date.now();
         NOTE.end();
-        return FOLD;
     },
     update_component: (FS, SOLUTION) => {
         const [FOLD, CELL] = FS[FS.length - 1];
