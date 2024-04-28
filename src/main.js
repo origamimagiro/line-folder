@@ -15,8 +15,8 @@ const MAIN = {
         active: "red",
         select: "blue",
         face: {
-            top: "gray",
-            bottom: "white",
+            top: "#AAA",
+            bottom: "#FFF",
         },
         edge: {
             U: "black",
@@ -429,6 +429,7 @@ const MAIN = {
         const fold_c = SVG.append("g", svg, {id: "fold_c"});
         const fold_s_crease = SVG.append("g", svg, {id: "fold_s_crease"});
         const fold_s_edge = SVG.append("g", svg, {id: "fold_s_edge"});
+        const Lsvg = SVG.append("g", svg, {id: "lines"});
         const fold_p = SVG.append("g", svg, {id: "fold_p"});
         SVG.draw_polygons(fold_c, cells, {
             id: true, fill: Ccolor, stroke: Ccolor});
@@ -439,7 +440,6 @@ const MAIN = {
         SVG.draw_segments(fold_s_edge, lines, {
             id: true, stroke: MAIN.color.edge.B,
             filter: (i) => SD[i] == "B"});
-        const Lsvg = SVG.append("g", svg, {id: "lines"});
         if (svg.id == "input") {
             if (LINE == undefined) {
                 SVG.draw_points(fold_p, Q_, {
