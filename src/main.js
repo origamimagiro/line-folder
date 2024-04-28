@@ -64,7 +64,7 @@ const MAIN = {
             }
         }
         const type_select = document.getElementById("type_select");
-        for (const option of ["crease", "simple", "all"]) {
+        for (const option of ["crease", "pure", "all"]) {
             const el = document.createElement("option");
             el.setAttribute("value", option);
             el.textContent = option;
@@ -540,7 +540,7 @@ const MAIN = {
                 for (const g_ of F_map[g]) {
                     const pair = M.encode_order_pair([f_, g_]);
                     if (BF_set.has(pair)) {
-                        if (type == "simple") {
+                        if (type == "pure") {
                             if (FM[f_] == FM[g_]) {
                                 FO.push([f_, g_, o]);
                             }
