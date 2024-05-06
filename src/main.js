@@ -867,7 +867,7 @@ const MAIN = {
         if (L != undefined) {
             slider.setAttribute("max", L.length);
         }
-        const CD = X.CF_edges_flip_2_CD(CF, edges);
+        const CD = X.CF_edges_2_CD(CF, edges);
         const Ctop = CD.map(S => flip ? S[0] : S[S.length - 1]);
         const Ccolor = Ctop.map(d => {
             if (d == undefined) { return undefined; }
