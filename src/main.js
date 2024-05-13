@@ -415,7 +415,7 @@ const MAIN = {
             }
         }
         const Pvisible = MAIN.PP_Ctop_CP_SC_2_Pvisible(Q, PP, Ctop, CP, SC);
-        const SD = X.EF_SE_SC_CF_CD_2_SD(EF, SE, SC, CF, Ctop);
+        const SD = X.Ctop_SC_SE_EF_Ff_2_SD(Ctop, SC, SE, EF, Ff);
         const Q_ = M.normalize_points(Q);
         const cells = CP.map(V => M.expand(V, Q_));
         const fold_c = SVG.append("g", svg, {id: "fold_c"});
@@ -428,10 +428,10 @@ const MAIN = {
         const lines = SP.map((ps) => M.expand(ps, Q_));
         SVG.draw_segments(fold_s_crease, lines, {
             id: true, stroke: MAIN.color.edge.F,
-            filter: (i) => SD[i] == "C"});
+            filter: (i) => SD[i][0] == "C"});
         SVG.draw_segments(fold_s_edge, lines, {
             id: true, stroke: MAIN.color.edge.B,
-            filter: (i) => SD[i] == "B"});
+            filter: (i) => SD[i][0] == "B"});
         if (svg.id == "input") {
             if (LINE == undefined) {
                 SVG.draw_points(fold_p, Q_, {
@@ -874,8 +874,7 @@ const MAIN = {
             if (Ff[d] != flip)  { return MAIN.color.face.top; }
             else                { return MAIN.color.face.bottom; }
         });
-        const SD = X.EF_SE_SC_CF_CD_2_SD(EF, SE, SC, CF, Ctop);
-        return {Q, CD, Ctop, Ccolor, SD, L, edges};
+        return {Q, CD, Ctop, Ccolor, L, edges};
     },
     linearize: (edges, n) => {
         const Adj = Array(n).fill(0).map(() => []);
