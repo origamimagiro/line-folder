@@ -95,15 +95,12 @@ export const IO3 = {    // INPUT-OUTPUT
         book.appendChild(defs.cloneNode(true));
         book.setAttribute("width", w * pages);
         book.setAttribute("height", h);
-        book.setAttribute("x", 0);
-        book.setAttribute("y", 0);
-        book.setAttribute("viewBox", [0, 0, w * pages, h].join(" "));
 
         for (let j = 0; j < PAGE.get_pages(PRJ.steps); j++) {
             PAGE.current_idx = j;
             const x = j * w;
-            const svg_page = PAGE.draw_panel(book, w, h, x, 0, j);
-            PAGE.redraw(svg_page, PRJ.steps, undefined, to_cell);
+            const svg_page = SVG.append("g", book);
+            PAGE.redraw(svg_page, PRJ.steps, undefined, to_cell, [x, 0]);
         }
         IO3.write_svg(book, name, 0);
     },

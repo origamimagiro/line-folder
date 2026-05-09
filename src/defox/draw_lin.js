@@ -54,7 +54,7 @@ export const DRAW_LIN = {
 
 
 
-    draw_state: (svg, FOLD, Stack, T, clip_c, depth, id = 0, symbols = [], render_all = true) => {
+    draw_state: (svg, FOLD, Stack, T, clip_c, depth, id = 0, symbols = [], render_all = true, origin = [0, 0]) => {
         const det = N.det(T[0]);
         const is_flip = det < 0;
         if (!Stack) {
@@ -62,16 +62,17 @@ export const DRAW_LIN = {
             return
         }
         const { Vf, Ff, FE, EA, FV, EV, Vc, UV, FU, UA } = FOLD;
-        const V_ = N.focus(Vf, [.5, .5]).map((v) => N.transform(T, v));
+        const V__ = N.focus(Vf, [.5, .5]).map((v) => N.transform(T, v));
+        const g_step = SVG.append("g", svg, { id: `${svg.id}_${id}` });
+        const g_clip = SVG.append("g", g_step);
+        if (!N.is_framed(V__)) {
+            SVG3.draw_clip_path(g_step, g_clip, .5 * SVG.SCALE, id, origin);
+
+        }
+        const V_ = V__.map(v => M.add(v, M.div(origin, SVG.SCALE)));
         const faces = FV.map(v => M.expand(v, V_));
         const Stack_ = is_flip ? Stack.toReversed() : Stack
 
-        const g_step = SVG.append("g", svg, { id: `${svg.id}_${id}` });
-        const g_clip = SVG.append("g", g_step);
-        if (!N.is_framed(V_)) {
-            SVG3.draw_clip_path(g_step, g_clip, .5 * SVG.SCALE, id);
-
-        }
         const g_mask = SVG.append("g", g_step)
         if (depth > 0) {
             SVG3.draw_mask(g_step, g_mask, .2 * SVG.SCALE, Math.abs(det) > 1, id);
@@ -116,7 +117,7 @@ export const DRAW_LIN = {
 
             if (ss) {
                 for (const s of ss) {
-                    DRAW.draw_symbol(g, s, FOLD, T);
+                    DRAW.draw_symbol(g, s, FOLD, [T[0], M.add(T[1], M.div(origin, SVG.SCALE))], origin);
                 }
             }
 

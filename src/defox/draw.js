@@ -91,12 +91,12 @@ export const DRAW = {
                 return d;
         }
     },
-    draw_cp: (FOLD, svg_cp, draw_creases = true) => {
+    draw_cp: (FOLD, svg_cp, draw_creases = true, origin = [0, 0]) => {
 
         const { V, FV, EV, EA, UA, UV } = FOLD;
-
-        const faces = FV.map(F => M.expand(F, V));
-        const lines = EV.map(E => M.expand(E, V));
+        const V_ = V.map(v => M.add(v, M.div(origin, SVG.SCALE)));
+        const faces = FV.map(F => M.expand(F, V_));
+        const lines = EV.map(E => M.expand(E, V_));
 
         const colors = EA.map(a => DRAW.color.segment[a]);
         const widths = EA.map(a => DRAW.width.segment[a]);
@@ -105,20 +105,20 @@ export const DRAW = {
         const g2 = SVG.append("g", svg_cp, { id: "flat_e" });
         SVG.draw_segments(g2, lines, { stroke_width: widths, stroke: colors });
         if (draw_creases) {
-            const creases = UV.map(U => M.expand(U, V));
+            const creases = UV.map(U => M.expand(U, V_));
             const colors_c = UA.map(a => DRAW.color.segment[a]);
             const widths_c = UA.map(a => DRAW.width.segment[a]);
             SVG.draw_segments(g2, creases, { stroke_width: widths_c, stroke: colors_c });
         }
 
     },
-    draw_symbol: (svg, symbol, FOLD, T) => {
-        const el = SYM.create(symbol.type, symbol.params, FOLD, T);
+    draw_symbol: (svg, symbol, FOLD, T, origin = [0, 0]) => {
+        const el = SYM.create(symbol.type, symbol.params, FOLD, T, origin);
         if (el) {
             svg.appendChild(el);
         }
     },
-    draw_state: (svg, FOLD, CELL, STATE, T, clip_c, id = 0, symbols = []) => {
+    draw_state: (svg, FOLD, CELL, STATE, T, clip_c, id = 0, symbols = [], origin = [0, 0]) => {
         const det = N.det(T[0]);
         const is_flip = det < 0
         if (STATE == undefined) {
@@ -130,17 +130,17 @@ export const DRAW = {
         const { Ctop, Cbottom } = STATE;
         const CFD = is_flip ? Cbottom : Ctop;
         const SD = Y.Ctop_SC_SE_EF_Ff_EA_FE_2_SD(CFD, SC, SE, EF, Ff, EA, FE);
-        const P_ = N.focus(P, [.5, .5]).map((v) => N.transform(T, v));
-
+        const Q = N.focus(P, [.5, .5]).map((v) => N.transform(T, v));
+        const g_step = SVG.append("g", svg)
+        const g_clip = SVG.append("g", g_step)
+        if (!N.is_framed(Q)) {
+            SVG3.draw_clip_path(g_step, g_clip, .5 * SVG.SCALE, id, origin);
+        }
+        const P_ = Q.map(v => M.add(v, M.div(origin, SVG.SCALE)));
         const [RP, RF] = Y.Ctop_CP_SC_SD_P_2_RP_RF(CFD, CP, SC, SD, P_);
         const regions = RP.map(V => M.expand(V, P_));
-        const g_step = SVG.append("g", svg)
 
-        const g_clip = SVG.append("g", g_step)
 
-        if (!N.is_framed(P_)) {
-            SVG3.draw_clip_path(g_step, g_clip, .5 * SVG.SCALE, id);
-        }
         const fold_c = SVG.append("g", g_clip, { id: svg.id + "_fold_c_" + id });
         const fold_s_crease = SVG.append("g", g_clip, { id: svg.id + "_fold_s_crease_" + id });
         const fold_s_edge = SVG.append("g", g_clip, { id: svg.id + "_fold_s_edge_" + id });
@@ -207,7 +207,7 @@ export const DRAW = {
             }
         }
         for (const [si, s] of symbols.entries()) {
-            DRAW.draw_symbol(g_step, s, FOLD, T);
+            DRAW.draw_symbol(g_step, s, FOLD, [T[0], M.add(T[1], M.div(origin, SVG.SCALE))], origin);
         }
     },
 

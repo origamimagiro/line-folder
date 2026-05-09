@@ -5,6 +5,7 @@ import { DRAW } from "./draw.js";
 import { SVG3 } from "./svg.js";
 import { STEP } from "./step.js";
 import { PRJ } from "./project.js";
+import { M } from "../flatfolder/math.js";
 
 
 export const PAGE = {
@@ -39,132 +40,142 @@ export const PAGE = {
         return Math.ceil((steps.length + b) / (r * c));
     },
 
-    draw_title: (body, w, h, steps) => {
+    draw_title: (body, w, h, steps, origin_body = [0, 0]) => {
         if (!PAGE.make_title || PAGE.current_idx != 0) { return; }
-        if (PAGE.layout.blanks > 0) { PAGE.draw_title_A(body, w, h, steps, .9); }
-        if (PAGE.layout.blanks > 1) { PAGE.draw_title_B(body, w, h, .9); }
-        if (PAGE.layout.blanks > 2) { PAGE.draw_title_C(body, w, h, steps, .9); }
+        if (PAGE.layout.blanks > 0) { PAGE.draw_title_A(body, w, h, steps, .9, origin_body); }
+        if (PAGE.layout.blanks > 1) { PAGE.draw_title_B(body, w, h, .9, origin_body); }
+        if (PAGE.layout.blanks > 2) { PAGE.draw_title_C(body, w, h, steps, .9, origin_body); }
     },
-    draw_title_A: (body, w, h, steps, size) => {
-        const panel = PAGE.draw_panel(body, w, h, 0, 0, "title_");
-        const s = Math.min(w, h);
-        const d = s * size;
-        SVG.SCALE = d;
-        const panel_d = PAGE.draw_panel(panel, s, s, (w - d) / 2, (h * .8 - d) / 2, "diagram_A");
-        const b = s * SVG3.MARGIN / SVG3.INI_SCALE;
-        const bb = `${-b} ${-b} ${s + 2 * b} ${s + 2 * b}`;
-        panel_d.setAttribute("viewBox", bb);
-        PAGE.draw_step(panel_d, steps[steps.length - 1], steps.length - 1);
+    draw_title_A: (body, w, h, steps, size, origin_body = [0, 0]) => {
+        const panel = SVG.append("g", body);
+        const origin_panel = origin_body;
 
-        SVG.append("rect", panel, { x: 0, y: h * .8, width: w, height: h * 0.1, fill: "darkgray" });
+        const s = Math.min(w, h);
+        const d = s * (size);
+        const origin_panel_d = M.add(origin_panel, [(s - d) / 2, (h * .8 - d) / 2]);
+
+        const b = d * SVG3.MARGIN / SVG3.INI_SCALE;
+        const [x0, y0] = M.add(origin_panel_d, [b, b])
+        SVG.SCALE = d - 2 * b;
+        PAGE.draw_step(panel, steps[steps.length - 1], steps.length - 1, false, false, [x0, y0]);
+
+        SVG.append("rect", panel, { x: origin_body[0], y: origin_body[1] + h * .8, width: w, height: h * 0.1, fill: "darkgray" });
         SVG3.reset();
         return panel;
     },
-    draw_title_B: (body, w, h, size) => {
-        const panel = PAGE.draw_panel(body, w, h, w, 0, "title_");
-        const panel_d = PAGE.draw_panel(panel, w * size, h * size, w * (1 - size) / 2, h * (1 - size - 0.2) / 2, "diagram_B");
+    draw_title_B: (body, w, h, size, origin_body = [0, 0]) => {
+        const panel = SVG.append("g", body);
+        const origin_panel = M.add(origin_body, [w, 0]);
 
-        SVG.append("text", panel_d, {
-            x: 0,
-            y: h * size / 4,
+        const s = Math.min(w, h);
+        const d = s * (size + .2);
+        const [x0, y0] = M.add(origin_panel, [(s - d) / 2, (s - d) / 2]);
+
+        SVG.append("text", panel, {
+            x: x0,
+            y: y0 + h * size / 4,
             "fill": "darkgray",
             "font-size": h * size / 8 + "pt",
             "font": PAGE.text.font,
         }).innerHTML = document.getElementById("title").value;
-        SVG.append("line", panel_d, {
-            x1: 0,
-            x2: w * size,
-            y1: h * size * (.3),
-            y2: h * size * (.3),
+        SVG.append("line", panel, {
+            x1: x0,
+            x2: x0 + w * size,
+            y1: y0 + h * size * (.3),
+            y2: y0 + h * size * (.3),
             stroke: "darkgray",
             "stroke-width": 10
         })
 
 
-        SVG.append("text", panel_d, {
-            x: 0,
-            y: h * size * (.3 + .1),
+        SVG.append("text", panel, {
+            x: x0,
+            y: y0 + h * size * (.3 + .1),
             "fill": "darkgray",
             "font-size": h * size * .0625 + "pt",
             "font": PAGE.text.font,
         }).innerHTML = document.getElementById("title_alt").value;
-        SVG.append("text", panel_d, {
-            x: 0,
-            y: h * size * (.55),
+        SVG.append("text", panel, {
+            x: x0,
+            y: y0 + h * size * (.55),
             "fill": "black",
             "font-size": h * size * .05 + "pt",
             "font": PAGE.text.font,
         }).innerHTML = document.getElementById("desc0").value;
-        SVG.append("text", panel_d, {
-            x: 0,
-            y: h * size * (.65),
+        SVG.append("text", panel, {
+            x: x0,
+            y: y0 + h * size * (.65),
             "fill": "black",
             "font-size": h * size * .05 + "pt",
             "font": PAGE.text.font,
         }).innerHTML = document.getElementById("desc1").value;
-        SVG.append("text", panel_d, {
-            x: 0,
-            y: h * size * (.75),
+        SVG.append("text", panel, {
+            x: x0,
+            y: y0 + h * size * (.75),
             "fill": "black",
             "font-size": h * size * .05 + "pt",
             "font": PAGE.text.font,
         }).innerHTML = document.getElementById("desc2").value;
 
-        SVG.append("rect", panel, { x: 0, y: h * .8, width: w, height: h * 0.1, fill: "darkgray" });
+        SVG.append("rect", panel, { x: origin_body[0] + w, y: origin_body[1] + h * .8, width: w, height: h * 0.1, fill: "darkgray" });
         return panel;
     },
-    draw_title_C: (body, w, h, steps, size = .8) => {
-        const panel = PAGE.draw_panel(body, w, h, w * 2, 0, "title_");
-        const s = Math.min(w, h);
-        const d = s * size;
-        SVG.SCALE = d;
-        const panel_d = PAGE.draw_panel(panel, s, s, (w - d) / 2, (h * .8 - d) / 2, "diagram_A");
-        const b = s * SVG3.MARGIN / SVG3.INI_SCALE;
-        const bb = `${-b} ${-b} ${s + 2 * b} ${s + 2 * b}`;
-        panel_d.setAttribute("viewBox", bb);
-        DRAW.draw_cp(steps[steps.length - 1].fold_cp, panel_d, false);
+    draw_title_C: (body, w, h, steps, size = .8, origin_body = [0, 0]) => {
+        const panel = SVG.append("g", body);
+        const origin_panel = M.add(origin_body, [2 * w, 0]);
 
-        SVG.append("rect", panel, { x: 0, y: h * .8, width: w, height: h * 0.1, fill: "darkgray" });
+        const s = Math.min(w, h);
+        const d = s * (size);
+        const origin_panel_d = M.add(origin_panel, [(s - d) / 2, (h * .8 - d) / 2]);
+
+        const b = d * SVG3.MARGIN / SVG3.INI_SCALE;
+        const [x0, y0] = M.add(origin_panel_d, [b, b])
+        SVG.SCALE = d - 2 * b;
+        DRAW.draw_cp(steps[steps.length - 1].fold_cp, panel, false, [x0, y0]);
+
+        SVG.append("rect", panel, { x: origin_body[0] + 2 * w, y: origin_body[1] + h * .8, width: w, height: h * 0.1, fill: "darkgray" });
         SVG3.reset();
         return panel;
     },
-    redraw: (svg, steps, defs = undefined, to_cell = false) => {
+    redraw: (svg, steps, defs = undefined, to_cell = false, origin = [0, 0]) => {
         document.getElementById("pages").innerHTML = PAGE.get_pages(steps);
         document.getElementById("page_idx").innerHTML = PAGE.current_idx + 1;
 
         svg.setAttribute("xmlns", SVG.NS);
         svg.setAttribute("style", "background: " + DRAW.color.background);
         svg.setAttribute("viewBox", [0, 0, PAGE.dim.width, PAGE.dim.height].join(" "));
-        const body = PAGE.draw_body(svg);
-        const w = body.width.baseVal.value / PAGE.layout.cols;
-        const h = body.height.baseVal.value / PAGE.layout.rows;
 
-        PAGE.draw_title(body, w, h, steps);
+        const body = SVG.append("g", svg);
+        const origin_body = M.add(origin, [PAGE.dim.margin_x, PAGE.dim.margin_y]);
+        const w = (PAGE.dim.width - 2 * PAGE.dim.margin_x) / PAGE.layout.cols;
+        const h = (PAGE.dim.height - 2 * PAGE.dim.margin_y) / PAGE.layout.rows;
+
+        PAGE.draw_title(body, w, h, steps, origin_body);
         for (let i = 0; i < steps.length; i++) {
             const [r, c] = PAGE.get_row_col(i);
             if (r == undefined || c == undefined) {
                 continue;
             }
-            const panel = PAGE.draw_panel(body, w, h, w * c, h * r, "step_" + i);
+            const panel = SVG.append("g", body);
+            const origin_panel = M.add(origin_body, [w * c, h * r]);
 
             const s = Math.min(w, h);
             const d = s * (1.0 - PAGE.dim.margin_step * 0.01);
-            SVG.SCALE = d;
-            const panel_d = PAGE.draw_panel(panel, s, s, (s - d) / 2, (s - d) / 2, "diagram_" + i);
-            const b = s * SVG3.MARGIN / SVG3.INI_SCALE;
-            const bb = `${-b} ${-b} ${s + 2 * b} ${s + 2 * b}`;
-            panel_d.setAttribute("viewBox", bb);
-            PAGE.draw_step(panel_d, steps[i], i, to_cell);
-            PAGE.draw_label(panel, i);
+            const origin_panel_d = M.add(origin_panel, [(s - d) / 2, (s - d) / 2]);
 
+            const b = s * SVG3.MARGIN / SVG3.INI_SCALE;
+            SVG.SCALE = d - 2 * b;
+            const origin_dia = M.add(origin_panel_d, [b, b])
+            PAGE.draw_step(panel, steps[i], i, to_cell, true, origin_dia);
+            PAGE.draw_label(panel, i, origin_panel);
         }
         SVG3.reset();
         return svg;
     },
-    draw_label: (panel, i) => {
+    draw_label: (panel, i, origin) => {
         const t = PAGE.text.size;
         let num = i + 1;
-        const loc = [t, t];
+        const loc = M.add([t, t], origin);
         if (PAGE.text.location == "Bottom") {
             loc[1] = h;
             num = num + ". "
@@ -175,7 +186,7 @@ export const PAGE = {
         return l;
     },
 
-    draw_step: (panel_d, step, id, to_cell, render_all = true) => {
+    draw_step: (panel_d, step, id, to_cell, render_all = true, origin = [0, 0]) => {
         const { flip0, rotate, scale, clip, cx, cy, depth } = step.params;
 
         const T = STEP.get_T(flip0, rotate, scale, cx, cy);
@@ -186,7 +197,7 @@ export const PAGE = {
         if (to_cell) {
             if (CELL) {
                 const STATE = Y.FOLD_CELL_2_STATE(FOLD, CELL);
-                DRAW.draw_state(panel_d, FOLD, CELL, STATE, T, clip, id, symbols);
+                DRAW.draw_state(panel_d, FOLD, CELL, STATE, T, clip, id, symbols, origin);
             }
             else {
                 const CELL_d = Y.FOLD_2_CELL(FOLD);
@@ -198,14 +209,14 @@ export const PAGE = {
                     GI: step.cell_cp.GI
                 }
                 const STATE = Y.FOLD_CELL_2_STATE(FOLD, C);
-                DRAW.draw_state(panel_d, FOLD, CELL_d, STATE, T, clip, id, symbols);
+                DRAW.draw_state(panel_d, FOLD, CELL_d, STATE, T, clip, id, symbols, origin);
             }
         } else {
             if (CELL) {
                 const STATE = Y.FOLD_CELL_2_STATE(FOLD, CELL);
-                DRAW.draw_state(panel_d, FOLD, CELL, STATE, T, clip, id, symbols);
+                DRAW.draw_state(panel_d, FOLD, CELL, STATE, T, clip, id, symbols, origin);
             } else {
-                DRAW_LIN.draw_state(panel_d, FOLD, step.lin.S, T, clip, depth, id, symbols, render_all);
+                DRAW_LIN.draw_state(panel_d, FOLD, step.lin.S, T, clip, depth, id, symbols, render_all, origin);
             }
         }
     },

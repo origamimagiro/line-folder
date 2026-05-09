@@ -30,16 +30,16 @@ export const SVG3 = {   // DRAWING
             }
         }
     },
-    draw_clip_path: (svg, gg, r, id) => {
+    draw_clip_path: (svg, gg, r, id, origin = [0, 0]) => {
         const cp = SVG.append("clipPath", gg);
         cp.setAttribute("id", "cpath_" + svg.id + "_" + id);
         SVG.append("circle", cp, {
-            cx: .5 * SVG.SCALE, cy: .5 * SVG.SCALE, r,
+            cx: .5 * SVG.SCALE + origin[0], cy: .5 * SVG.SCALE + origin[1], r,
         });
 
         gg.setAttribute("clip-path", "url(#cpath_" + svg.id + "_" + id + ")");
         return SVG.append("circle", svg, {
-            cx: .5 * SVG.SCALE, cy: .5 * SVG.SCALE, r,
+            cx: .5 * SVG.SCALE + origin[0], cy: .5 * SVG.SCALE + origin[1], r,
             "fill": "none",
             "stroke": "black",
             "stroke-width": DRAW.width.clip_path.body,

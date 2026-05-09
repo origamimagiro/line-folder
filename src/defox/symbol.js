@@ -38,7 +38,7 @@ export const SYM = {
         return [s, e];
     },
 
-    create: (type, params, FOLD, T) => {
+    create: (type, params, FOLD, T, origin = [0, 0]) => {
         const i = params.crease_index;
         const { Vf, UV, EV } = FOLD;
         const V_ = N.focus(Vf, [.5, .5]).map((v) => N.transform(T, v));
@@ -90,7 +90,7 @@ export const SYM = {
             case 7:
                 return SYM.create_fold_unfold(s, e, params.is_clockwise, true);
             case 8:
-                const c = [params.cx * (params.offset + 1), params.cy];
+                const c = M.add([params.cx * (params.offset + 1), params.cy], M.div(origin, SVG.SCALE));
                 return SYM.create_flip(c, params.is_rev, SYM.radius.flip * params.length);
             case 9:
                 const l = params.length;
