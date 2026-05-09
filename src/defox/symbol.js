@@ -366,7 +366,7 @@ export const SYM = {
             y: ny + l * 0.5,
             "fill": SYM.color.text,
             "font-size": SYM.width.text + "pt",
-            "font": PAGE.text.font,
+            "font-family": PAGE.text.font,
         });
         t.innerHTML = txt;
         return sym;

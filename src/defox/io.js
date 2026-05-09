@@ -87,22 +87,21 @@ export const IO3 = {    // INPUT-OUTPUT
             IO3.write_svg(book, name, idx);
             return;
         }
+
+        const pages = PAGE.get_pages(PRJ.steps);
         const w = PAGE.dim.width;
         const h = PAGE.dim.height;
-        const pages = PAGE.get_pages(PRJ.steps);
-        const book = document.createElement("svg");
-        book.setAttribute("xmlns", SVG.NS);
-        book.appendChild(defs.cloneNode(true));
-        book.setAttribute("width", w * pages);
-        book.setAttribute("height", h);
-
-        for (let j = 0; j < PAGE.get_pages(PRJ.steps); j++) {
+        for (let j = 0; j < pages; j++) {
+            const book = document.createElement("svg");
+            book.setAttribute("xmlns", SVG.NS);
+            book.appendChild(defs.cloneNode(true));
+            book.setAttribute("width", w);
+            book.setAttribute("height", h);
             PAGE.current_idx = j;
-            const x = j * w;
             const svg_page = SVG.append("g", book);
-            PAGE.redraw(svg_page, PRJ.steps, undefined, to_cell, [x, 0]);
+            PAGE.redraw(svg_page, PRJ.steps, defs, to_cell, [0, 0]);
+            IO3.write_svg(book, name, j);
         }
-        IO3.write_svg(book, name, 0);
     },
     write_svg: (svg, name, idx) => {
         const img = new Blob([svg.outerHTML], {
