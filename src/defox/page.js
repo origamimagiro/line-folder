@@ -76,7 +76,7 @@ export const PAGE = {
             y: y0 + h * size / 4,
             "fill": "darkgray",
             "font-size": h * size / 8 + "pt",
-            "font": PAGE.text.font,
+            "font-family": PAGE.text.font,
         }).innerHTML = document.getElementById("title").value;
         SVG.append("line", panel, {
             x1: x0,
@@ -93,28 +93,28 @@ export const PAGE = {
             y: y0 + h * size * (.3 + .1),
             "fill": "darkgray",
             "font-size": h * size * .0625 + "pt",
-            "font": PAGE.text.font,
+            "font-family": PAGE.text.font,
         }).innerHTML = document.getElementById("title_alt").value;
         SVG.append("text", panel, {
             x: x0,
             y: y0 + h * size * (.55),
             "fill": "black",
             "font-size": h * size * .05 + "pt",
-            "font": PAGE.text.font,
+            "font-family": PAGE.text.font,
         }).innerHTML = document.getElementById("desc0").value;
         SVG.append("text", panel, {
             x: x0,
             y: y0 + h * size * (.65),
             "fill": "black",
             "font-size": h * size * .05 + "pt",
-            "font": PAGE.text.font,
+            "font-family": PAGE.text.font,
         }).innerHTML = document.getElementById("desc1").value;
         SVG.append("text", panel, {
             x: x0,
             y: y0 + h * size * (.75),
             "fill": "black",
             "font-size": h * size * .05 + "pt",
-            "font": PAGE.text.font,
+            "font-family": PAGE.text.font,
         }).innerHTML = document.getElementById("desc2").value;
 
         SVG.append("rect", panel, { x: origin_body[0] + w, y: origin_body[1] + h * .8, width: w, height: h * 0.1, fill: "darkgray" });
