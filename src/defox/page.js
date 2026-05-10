@@ -57,7 +57,7 @@ export const PAGE = {
         const b = d * SVG3.MARGIN / SVG3.INI_SCALE;
         const [x0, y0] = M.add(origin_panel_d, [b, b])
         SVG.SCALE = d - 2 * b;
-        PAGE.draw_step(panel, steps[steps.length - 1], steps.length - 1, false, false, [x0, y0]);
+        PAGE.draw_step(panel, steps[steps.length - 1], steps.length, false, true, [x0, y0]);
 
         SVG.append("rect", panel, { x: origin_body[0], y: origin_body[1] + h * .8, width: w, height: h * 0.1, fill: "darkgray" });
         SVG3.reset();

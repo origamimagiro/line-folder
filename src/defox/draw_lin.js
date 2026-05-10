@@ -75,7 +75,7 @@ export const DRAW_LIN = {
 
         const g_mask = SVG.append("g", g_step)
         if (depth > 0) {
-            SVG3.draw_mask(g_step, g_mask, .2 * SVG.SCALE, Math.abs(det) > 1, id);
+            SVG3.draw_mask(g_step, g_mask, .2 * SVG.SCALE, Math.abs(det) > 1, id, origin);
         }
 
 
@@ -98,6 +98,7 @@ export const DRAW_LIN = {
             }
 
             const par = i > Stack_.length - depth - 1 ? g_mask : g_clip;
+
             const g = SVG.append("g", par, { id: "face_" + face_idx })
             if (Fvisible[face_idx]) {
                 const face = faces[face_idx];
