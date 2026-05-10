@@ -126,8 +126,9 @@ export const IO3 = {    // INPUT-OUTPUT
             PAGE.current_idx = j;
 
             const svg_page = SVG.clear("png");
-            const defs = document.getElementById("defs");
-            const svg = PAGE.redraw(svg_page, PRJ.steps, defs);
+            const defs = document.getElementById("defs").firstElementChild;
+            svg_page.appendChild(defs.cloneNode(true));
+            const svg = PAGE.redraw(svg_page, PRJ.steps);
 
             const width = PAGE.dim.width;
             const height = PAGE.dim.height;
@@ -135,6 +136,7 @@ export const IO3 = {    // INPUT-OUTPUT
             IO3.write_png(svg, name + "_page_", dim, j);
         }
         document.getElementById("png").setAttribute("style", "display:none");
+        SVG.clear("png");
     },
     write_png_steps: async (name) => {
         const zip = new JSZip();
