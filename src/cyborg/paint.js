@@ -180,14 +180,14 @@ export const PAINT = {
         PAINT.is_invalid = false;
         PAINT.saves = [];
         PAINT.save_idx = 0;
-        PAINT.reset_view();
+        // PAINT.reset_view();
+        PAINT.redraw();
     },
 
     reset_view: () => {
         PAINT.scale = 1;
         PAINT.cx = .5;
         PAINT.cy = .5;
-        PAINT.redraw();
     },
 
     get_pointer_loc: (e) => {
