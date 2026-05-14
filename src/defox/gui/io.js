@@ -90,7 +90,9 @@ export const GUI_IO = {
             PRJ.steps.splice(PRJ.current_idx + 1, 0, step);
         }
         PRJ.restore(PRJ.current_idx);
-
+        if (is_new) {
+            STEP.new();
+        }
         PRJ.record(PRJ.current_idx);
 
         PRJ.restore(PRJ.current_idx + 1);
