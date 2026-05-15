@@ -69,6 +69,7 @@ export const GUI_IO = {
         if (!doc) {
             return false;
         }
+        PRJ.record(PRJ.current_idx);
         const FOLD_infer = !is_new && is_interp ? PRJ.steps[PRJ.current_idx].fold_cp : undefined;
         let limit = parseInt(document.getElementById("assign_limit").value);
         if (limit == 0) { limit = Infinity };
@@ -90,9 +91,7 @@ export const GUI_IO = {
             PRJ.steps.splice(PRJ.current_idx + 1, 0, step);
         }
         PRJ.restore(PRJ.current_idx);
-        if (is_new) {
-            STEP.new();
-        }
+        STEP.new(is_new);
         PRJ.record(PRJ.current_idx);
 
         PRJ.restore(PRJ.current_idx + 1);

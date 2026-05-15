@@ -72,8 +72,10 @@ export const STEP = {
         STEP.reset_component(STEP.CELL0, select, assign);
     },
 
-    new: () => {
-        STEP.refresh();
+    new: (ini = true) => {
+        if (ini) {
+            STEP.refresh();
+        }
         STEP.update_states();
         const select = document.getElementById("selectG");
         const assign = document.getElementById("assign");
