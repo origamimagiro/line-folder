@@ -178,7 +178,8 @@ export const DRAW = {
             stroke_width: DRAW.width.edge.B,
         });
 
-        const Vf_ = N.focus(Vf, [.5, .5]).map((v) => N.transform(T, v));
+        const Vf_ = N.focus(Vf, [.5, .5]).map((v) => N.transform(T, v))
+            .map(v => M.add(v, M.div(origin, SVG.SCALE)));
         const FR_map = new Map();
         for (const [ri, fi] of RF.entries()) {
             const ris = FR_map.get(fi);
