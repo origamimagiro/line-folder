@@ -172,7 +172,7 @@ export const PAGE = {
         SVG3.reset();
         return svg;
     },
-    draw_label: (panel, i, origin) => {
+    draw_label: (panel, i, origin = [0, 0]) => {
         const t = PAGE.text.size;
         let num = i + 1;
         const loc = M.add([t, t], origin);
