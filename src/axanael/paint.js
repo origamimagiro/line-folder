@@ -171,7 +171,7 @@ export const PAINT = {
         PAINT.redraw();
     },
     hilight_segment: () => {
-        if (!PAINT.segment || PAINT.segment[0] < 0) { return; }
+        if (!PAINT.segment || PAINT.segment[0] < 0 || PAINT.segment[0] == undefined) { return; }
         const s = SVG.SCALE;
 
         const [v1, v2] = PAINT.creases[PAINT.segment[0]];
@@ -246,7 +246,7 @@ export const PAINT = {
         const i = PRJ.current_idx;
         if (STEP.CELL_D) {
             const CELL = STEP.CELL_D;
-            const STATE = Y.FOLD_CELL_2_STATE(FOLD, CELL);
+            const STATE = STEP.STATE ?? Y.FOLD_CELL_2_STATE(FOLD, CELL);
             DRAW.draw_state(svg, FOLD, CELL, STATE, T, SEG.clip, STEP.id, symbols ?? []);
         }
         else {
