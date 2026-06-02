@@ -5,16 +5,20 @@ import { PRJ } from "../project.js";
 import { GUI_STATE } from "./state.js";
 import { GUI_PAGE } from "./page.js";
 import { GUI_IO } from "./io.js";
+import { LOAD } from "./load.js";
 
 export const GUI = {
 
     startup: () => {
-        CON.build();
-        const defs = document.getElementById("defs");
-        GUI.fetch(defs, './resources/defs.xml');
+        LOAD.start(GUI.build);
+    },
 
+    build: () => {
+        CON.build();
         GUI_IO.startup();
+
         GUI_STATE.startup();
+
         GUI_PAGE.startup();
         GUI_IO.import_cp("sample", SMPL.hf, true);
         GUI_IO.import_cp("sample", SMPL.sq);
@@ -23,7 +27,8 @@ export const GUI = {
         GUI_IO.import_cp("sample", SMPL.nonlin);
         GUI_IO.import_cp("sample", SMPL.sq);
         GUI_IO.import_cp("sample", SMPL.hanikamu);
-
+        const defs = document.getElementById("defs");
+        return GUI.fetch(defs, './resources/defs.xml');
     },
 
     open_close: (id, display_style) => {
@@ -39,11 +44,12 @@ export const GUI = {
     },
 
     fetch: (par, url) => {
-        fetch(url)
+        return fetch(url)
             .then(response => response.text())
             .then(xml => {
                 par.innerHTML = xml;
             });
     },
+
 
 }

@@ -1,0 +1,15 @@
+<b>
+    <i class="bi bi-hourglass"></i>
+    Processing...
+</b>
+<div>
+    <b>[</b>
+    <b id="progress">
+    </b>
+    <b>]
+    </b>
+</div>
+<div>
+    <b>Remains: </b>
+    <b id="remains"></b>
+</div>
