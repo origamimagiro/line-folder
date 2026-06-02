@@ -141,6 +141,8 @@ export const PRJ = {
         STEP.FOLD_D = PRJ.steps[i].fold_d;
         STEP.CELL_D = PRJ.steps[i].cell_d;
         STEP.LIN = PRJ.steps[i].lin;
+        STEP.STATE = PRJ.steps[i].STATE;
+
 
         STEP.SYMBOLS = PRJ.steps[i].symbols ?? [];
 
@@ -188,6 +190,7 @@ export const PRJ = {
         PRJ.steps[i].fold_d = STEP.FOLD_D;
         PRJ.steps[i].cell_d = STEP.CELL_D;
         PRJ.steps[i].lin = STEP.LIN;
+        PRJ.steps[i].STATE = STEP.STATE;
         PRJ.steps[i].params = PRJ.parameters();
         PRJ.steps[i].symbols = STEP.SYMBOLS ?? [];
     },

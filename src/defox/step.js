@@ -55,7 +55,7 @@ export const STEP = {
         if (STEP.CELL_D) {
             const FOLD = STEP.FOLD_D;
             const CELL = STEP.CELL_D;
-            STEP.update_celled_state(FOLD, CELL, "state3", T);
+            STEP.STATE = STEP.update_celled_state(FOLD, CELL, "state3", T, STEP.STATE);
             document.getElementById("apply_tt").style.background = "";
         } else {
             STEP.update_linear_state(STEP.FOLD_D, STEP.LIN.S, "state3", T);
@@ -95,8 +95,8 @@ export const STEP = {
         CELL.GI = STEP.CELL0.GI;
         STEP.CELL_D = CELL;
         const T = STEP.get_transform();
-        const STATE = STEP.update_celled_state(FOLD, CELL, "state3", T)
-        if (STATE) {
+        STEP.STATE = STEP.update_celled_state(FOLD, CELL, "state3", T)
+        if (STEP.STATE) {
             STEP.LIN = STATE.L;
         }
         document.getElementById("apply_tt").style.background = "";
@@ -143,7 +143,7 @@ export const STEP = {
     update_states: () => {
         const T = STEP.get_transform();
         STEP.SYMBOLS = [];
-        STEP.STATE0 = STEP.update_celled_state(STEP.FOLD0, STEP.CELL0, "state0", T);
+        STEP.STATE0 = STEP.update_celled_state(STEP.FOLD0, STEP.CELL0, "state0", T, STEP.STATE0);
         DRAW.draw_group_text(STEP.FOLD0, STEP.CELL0, document.getElementById("state0"), T);
         if (STEP.FOLD1) {
             [STEP.FOLD, STEP.LIN] = DIFF.diff(STEP.FOLD0, STEP.FOLD1, STEP.STATE0.L);
@@ -154,13 +154,13 @@ export const STEP = {
         DRAW.draw_cp(STEP.FOLD, SVG.clear("cp3"));
     },
 
-    update_celled_state: (FOLD, CELL, svg_state, T) => {
+    update_celled_state: (FOLD, CELL, svg_state, T, STATE = undefined) => {
         if (!FOLD) {
             return;
         }
-        const STATE = Y.FOLD_CELL_2_STATE(FOLD, CELL);
-        DRAW.draw_state(SVG.clear(svg_state), FOLD, CELL, STATE, T, SEG.clip, STEP.id, STEP.SYMBOLS);
-        return STATE
+        const STATE_ = STATE ?? Y.FOLD_CELL_2_STATE(FOLD, CELL);
+        DRAW.draw_state(SVG.clear(svg_state), FOLD, CELL, STATE_, T, SEG.clip, STEP.id, STEP.SYMBOLS);
+        return STATE_
     },
     update_linear_state: (FOLD, S, svg_state, T) => {
         if (!FOLD) {
