@@ -56,7 +56,7 @@ export const IO3 = {
 
         const zip = new JSZip();
 
-        LOAD.set(PRJ.steps.length - 1,
+        await LOAD.set(PRJ.steps.length - 1,
             async () => {
                 for (const [idx, step] of PRJ.steps.entries()) {
                     if (idx == 0) {
@@ -79,7 +79,7 @@ export const IO3 = {
     write_svgs: async (name, idx = undefined, to_cell = false) => {
         const defs = document.getElementById("defs").firstElementChild;
         if (idx) {
-            LOAD.set(1, async () => {
+            await LOAD.set(1, async () => {
                 const book = document.createElement("svg");
                 book.setAttribute("xmlns", SVG.NS);
                 book.appendChild(defs.cloneNode(true));
@@ -101,7 +101,7 @@ export const IO3 = {
         const pages = PAGE.get_pages(PRJ.steps);
         const w = PAGE.dim.width;
         const h = PAGE.dim.height;
-        LOAD.set(pages, async () => {
+        await LOAD.set(pages, async () => {
             for (let j = 0; j < pages; j++) {
                 const book = document.createElement("svg");
                 book.setAttribute("xmlns", SVG.NS);
@@ -136,7 +136,7 @@ export const IO3 = {
             return;
         }
         const pages = PAGE.get_pages(PRJ.steps);
-        LOAD.set(pages,
+        await LOAD.set(pages,
             async () => {
                 for (let j = 0; j < pages; j++) {
                     PAGE.current_idx = j;
@@ -159,7 +159,7 @@ export const IO3 = {
     },
     write_png_steps: async (name) => {
         const zip = new JSZip();
-        LOAD.set(PRJ.steps.length,
+        await LOAD.set(PRJ.steps.length,
             async () => {
                 for (const [idx, step] of PRJ.steps.entries()) {
                     const height = SVG.SCALE + 2 * SVG3.MARGIN;
@@ -182,7 +182,7 @@ export const IO3 = {
     },
     write_png_nonscale: async (name) => {
         const zip = new JSZip();
-        LOAD.set(PRJ.steps.length,
+        await LOAD.set(PRJ.steps.length,
             async () => {
                 for (const [idx, step] of PRJ.steps.entries()) {
                     const height = SVG.SCALE + 2 * SVG3.MARGIN;
@@ -241,7 +241,7 @@ export const IO3 = {
 
     save: async (data, name) => {
         const data_ = [];
-        LOAD.set(data.length,
+        await LOAD.set(data.length,
             async () => {
                 for (const d of data) {
                     const d_ = {};

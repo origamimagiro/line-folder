@@ -8,6 +8,7 @@ import { STEP } from "./step.js"
 import { SEG } from "./segment.js";
 import { PAGE } from "./page.js";
 import { Y } from "./y.js";
+import { LOAD } from "./gui/load.js";
 
 
 export const PRJ = {
@@ -82,42 +83,49 @@ export const PRJ = {
         PRJ.restore(i - 1);
         STEP.redraw();
     },
-    extrapolate: () => {
+    extrapolate: async () => {
         if (!confirm("All the symbols added in the following steps will be all deleted.")) { return }
         const i = PRJ.current_idx;
         if (i + 1 > PRJ.steps.length - 1) { return }
         let FOLD_infer = PRJ.steps[i].fold_cp;
-        for (let j = i + 1; j < PRJ.steps.length; j++) {
-            const { EV, V, UV, EA, UA } = PRJ.steps[j].fold_cp;
 
-            const segs = EV.map((vs) => {
-                return M.expand(vs, V);
-            }).concat(UV.map((vs) => {
-                return M.expand(vs, V);
-            }));
-            const assigns = EA.concat(UA);
-            const doc = Y.segs_EA_2_CP(segs, assigns, 1.0);
-            const FOLD = Y.CP_2_FOLD(doc, FOLD_infer);
-            const CELL = Y.FOLD_2_CELL(FOLD);
+        await LOAD.set(PRJ.steps.length,
+            async () => {
+                for (let j = i + 1; j < PRJ.steps.length; j++) {
+                    const { EV, V, UV, EA, UA } = PRJ.steps[j].fold_cp;
 
-            PRJ.steps[j].fold_cp = FOLD;
-            for (const key of ["P", "CP", "SP", "PP", "SC", "CS", "SE", "FC", "CF"]) {
-                PRJ.steps[j].cell_cp[key] = CELL[key];
+                    const segs = EV.map((vs) => {
+                        return M.expand(vs, V);
+                    }).concat(UV.map((vs) => {
+                        return M.expand(vs, V);
+                    }));
+                    const assigns = EA.concat(UA);
+                    const doc = Y.segs_EA_2_CP(segs, assigns, 1.0);
+                    const FOLD = Y.CP_2_FOLD(doc, FOLD_infer);
+                    const CELL = Y.FOLD_2_CELL(FOLD);
+
+                    PRJ.steps[j].fold_cp = FOLD;
+                    for (const key of ["P", "CP", "SP", "PP", "SC", "CS", "SE", "FC", "CF"]) {
+                        PRJ.steps[j].cell_cp[key] = CELL[key];
+                    }
+
+                    PRJ.restore(j - 1);
+                    STEP.update_states();
+                    STEP.update_dist();
+                    PRJ.record(j - 1);
+                    FOLD_infer = FOLD;
+                    await LOAD.report();
+                }
+
+                const j = PRJ.steps.length - 1;
+                PRJ.restore(j);
+                STEP.update_states();
+                STEP.update_dist();
+                PRJ.record(j);
+                STEP.redraw();
+
             }
-
-            PRJ.restore(j - 1);
-            STEP.update_states();
-            STEP.update_dist();
-            PRJ.record(j - 1);
-            FOLD_infer = FOLD;
-        }
-
-        const j = PRJ.steps.length - 1;
-        PRJ.restore(j);
-        STEP.update_states();
-        STEP.update_dist();
-        PRJ.record(j);
-        STEP.redraw();
+        );
 
     },
     restore: (i) => {
