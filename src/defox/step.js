@@ -97,7 +97,7 @@ export const STEP = {
         const T = STEP.get_transform();
         STEP.STATE = STEP.update_celled_state(FOLD, CELL, "state3", T)
         if (STEP.STATE) {
-            STEP.LIN = STATE.L;
+            STEP.LIN = STEP.STATE.L;
         }
         document.getElementById("apply_tt").style.background = "";
     },
