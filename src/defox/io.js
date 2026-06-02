@@ -11,6 +11,7 @@ import { DIST } from "../distortionfolder/distortion.js";
 import { SVG3 } from "./svg.js";
 import { DRAW } from "./draw.js";
 import { SYM } from "./symbol.js";
+import { LOAD } from "./gui/load.js";
 
 
 export const IO3 = {    // INPUT-OUTPUT
@@ -267,6 +268,7 @@ export const IO3 = {    // INPUT-OUTPUT
         NOTE.start_check("recovered steps", data_);
         for (const [i, d] of data_.entries()) {
             NOTE.check(i);
+            LOAD.check();
             if (!d.id) {
                 d.id = Date.now() + Math.floor(Math.random() * 100000);
             }

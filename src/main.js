@@ -6,7 +6,7 @@ import { GUI as GA } from "./axanael/gui.js";
 
 window.onload = async () => {
     await LOAD.startup();
-    GUI.startup();
+    await GUI.startup();
     GC.startup();
     GA.startup();
 

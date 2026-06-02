@@ -8,27 +8,34 @@ import { GUI_IO } from "./io.js";
 import { LOAD } from "./load.js";
 
 export const GUI = {
+    samples: [
+        SMPL.hf,
+        SMPL.sq,
+        SMPL.windmil,
+        SMPL.hf,
+        SMPL.nonlin,
+        SMPL.sq,
+        SMPL.hanikamu],
 
-    startup: () => {
-        LOAD.start(GUI.build);
-    },
-
-    build: () => {
+    startup: async () => {
+        const defs = document.getElementById("defs");
+        await GUI.fetch(defs, './resources/defs.xml');
         CON.build();
         GUI_IO.startup();
-
         GUI_STATE.startup();
-
+        await LOAD.withLoading(
+            GUI.samples.length,
+            async (report) => {
+                await GUI.build(report);
+            });
         GUI_PAGE.startup();
-        GUI_IO.import_cp("sample", SMPL.hf, true);
-        GUI_IO.import_cp("sample", SMPL.sq);
-        GUI_IO.import_cp("sample", SMPL.windmil);
-        GUI_IO.import_cp("sample", SMPL.hf);
-        GUI_IO.import_cp("sample", SMPL.nonlin);
-        GUI_IO.import_cp("sample", SMPL.sq);
-        GUI_IO.import_cp("sample", SMPL.hanikamu);
-        const defs = document.getElementById("defs");
-        return GUI.fetch(defs, './resources/defs.xml');
+    },
+
+    build: async (report) => {
+        for (const [idx, sample] of GUI.samples.entries()) {
+            GUI_IO.import_cp("sample", sample, idx == 0);
+            await report(idx + 1);
+        }
     },
 
     open_close: (id, display_style) => {
@@ -43,12 +50,15 @@ export const GUI = {
         }
     },
 
-    fetch: (par, url) => {
-        return fetch(url)
-            .then(response => response.text())
-            .then(xml => {
-                par.innerHTML = xml;
-            });
+    fetch: async (par, url) => {
+        try {
+            const response = await fetch(url);
+            const xml = await response.text();
+            par.innerHTML = xml;
+        }
+        catch (error) {
+            console.error("fetch error:", error)
+        }
     },
 
 

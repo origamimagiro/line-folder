@@ -1,65 +1,68 @@
 
 export const LOAD = {
     EL: undefined,
-
-    tasks: 0,
-    checked: 0,
-    time: 0,
+    LEN: 30,
 
 
     startup: async () => {
         LOAD.EL = document.getElementById("loading");
-        await fetch('./resources/loading.xml')
-            .then(response => response.text())
-            .then(xml => {
-                LOAD.EL.innerHTML = xml;
-                LOAD.EL.style.visibility = "visible";
-            });
+        try {
+            const response = await fetch('./resources/loading.xml');
+            const xml = await response.text();
+            LOAD.EL.innerHTML = xml;
+
+        } catch (error) {
+            console.error("loading screen loading error", error);
+        }
     },
+    withLoading: async (total, taskFunction) => {
+        const pr = document.getElementById("progress");
+        const rem = document.getElementById("remains");
+        const t0 = Date.now();
+        let t1 = t0;
+
+        const report = async (current) => {
+            if (current > total) current = total;
+            const pct = total > 0 ? current / total : 0;
+            const bars = Math.floor(pct * LOAD.LEN);
+            if (pr) {
+                pr.innerHTML = "|".repeat(bars) + "-".repeat(LOAD.LEN - bars);
+            }
+            if (current > 0 && current < total && rem) {
+                const t = Date.now() - t0;
+                const est_ms = t * (total - current) / total;
+                rem.innerHTML = LOAD.time_str(est_ms);
+            }
+            const now = Date.now();
+            if (now - t1 > 16 || current === total) {
+                await new Promise(r => setTimeout(r, 0));
+                t1 = now;
+            }
+        }
 
 
-    start: (func, tasks = 1) => {
-        LOAD.set(tasks);
-
-        const el = LOAD.EL;
-        el.style.visibility = "visible";
-        func();
-        LOAD.check();
-        LOAD.end();
-        el.style.visibility = "hidden";
+        try {
+            if (pr) pr.innerHTML = "-".repeat(LOAD.LEN);
+            if (rem) rem.innerHTML = "estimating...";
+            LOAD.start();
+            await new Promise(r => requestAnimationFrame(() => setTimeout(r, 0)));
+            await taskFunction(report);
+            if (rem) rem.innerHTML = "completed.";
+        } catch (error) {
+            console.error("task failed:", error);
+        } finally {
+            LOAD.end();
+        }
     },
-
-    set: (tasks) => {
-        LOAD.tasks = tasks;
-        LOAD.checked = -1;
-        LOAD.time = Date.now();
-
-        LOAD.check();
+    start: () => {
+        LOAD.EL.style.visibility = "visible";
     },
 
     end: () => {
-        LOAD.tasks = 0;
-        LOAD.checked = -1;
-        LOAD.time = 0;
+        LOAD.EL.style.visibility = "hidden";
 
         document.getElementById("progress").innerHTML = "";
         document.getElementById("remains").innerHTML = "";
-    },
-    check: () => {
-        LOAD.checked = LOAD.checked + 1;
-        if (LOAD.checked > LOAD.tasks) {
-            LOAD.end();
-            return
-        }
-        const el = document.getElementById("progress");
-        const done = "|";
-        const tbd = "-";
-        const len = 30;
-        const d = len * (LOAD.checked) / LOAD.tasks;
-        el.innerHTML = done.repeat(d) + tbd.repeat(len - d);
-
-        const rem = LOAD.time_str((Date.now() - LOAD.time) * (LOAD.tasks - LOAD.checked) / LOAD.tasks);
-        document.getElementById("remains").innerHTML = rem;
     },
 
     time_str: (msec) => {
