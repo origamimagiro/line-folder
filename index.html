@@ -89,6 +89,11 @@
                         <button id="infer_next"><i class="bi bi-box-arrow-in-left"></i></button>
                     </p>
                     <p>
+                        <label for="scale">Zoom</label>
+                        <input id="scale" type="range" max="20" min="0" value="1" step="1">
+                        <button id="scale_reset">Reset</button>
+                    </p>
+                    <p>
                         <label for="rotate">Angle</label>
                         <input id="rotate" type="range" max="1" min="0" value="0.5" step="0.125">
                         <button id="rotate_reset">Reset</button>
@@ -155,7 +160,6 @@
     <svg id="svgout" style="display: none;"></svg>
     <svg id="png" style="display: none;"></svg>
     <svg id="defs"></svg>
-    <b>© Kei Morisue 2024, 2026</b>
     <p>
         <a href="https://youtu.be/MNiAYSwBwfY">Introduction Video</a>
     </p>
@@ -167,6 +171,13 @@
             href="https://github.com/kei-morisue/step-folder/blob/082abe77fdcd4178888780c07f0a26a9bc11df9c/Affine_Distortions.pdf">Distortion
             Logic Paper</a>
     </p>
+    <p>
+        <b>© Kei Morisue 2024, 2026</b>
+    </p>
+    <p>
+        <b>powered by <a href="https://origamimagiro.github.io/flat-folder/">Flat-Folder</a> by Jason S. Ku</b>
+    </p>
+
     <script type="module" src="./src/main.js?v1.0.0"></script>
 </body>
 

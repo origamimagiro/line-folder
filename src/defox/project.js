@@ -168,6 +168,7 @@ export const PRJ = {
             for (const key of ["p0", "p1", "p2"]) {
                 DIST[key] = p[key];
             }
+            document.getElementById("scale").value = STEP.scale ?? 1;
             document.getElementById("clip").value = SEG.clip ?? 0;
             document.getElementById("rotate").value = STEP.rotate ?? .5;
             document.getElementById("depth").value = STEP.depth ?? 0;

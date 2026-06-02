@@ -78,12 +78,7 @@ export const GUI_STATE = {
             STEP.update_dist();
             STEP.redraw();
         }
-        document.getElementById("state3").onwheel = (e) => {
-            e.preventDefault();
-            const lvl = STEP.scale - Math.sign(e.deltaY);
-            STEP.scale = Math.max(0, lvl);
-            STEP.redraw();
-        }
+
         document.getElementById("state3").onclick = (e) => {
             e.preventDefault();
             const svg = document.getElementById("state3")
@@ -143,11 +138,11 @@ export const GUI_STATE = {
             PRJ.record(PRJ.current_idx);
         }
         GUI_STATE.setup_range_options(
-            ["p0", "p1", "p2", "clip", "rotate", "depth"],
-            ["p0", "p1", "p2", "clip", "rotate", "depth"],
-            [0, 0.5, 0, 0, 0.5, 0],
-            [DIST, DIST, DIST, SEG, STEP, STEP],
-            [STEP.update_dist, STEP.update_dist, STEP.update_dist, STEP.redraw, STEP.redraw, STEP.redraw]
+            ["p0", "p1", "p2", "clip", "rotate", "depth", "scale"],
+            ["p0", "p1", "p2", "clip", "rotate", "depth", "scale"],
+            [0, 0.5, 0, 0, 0.5, 0, 1],
+            [DIST, DIST, DIST, SEG, STEP, STEP, STEP],
+            [STEP.update_dist, STEP.update_dist, STEP.update_dist, STEP.redraw, STEP.redraw, STEP.redraw, STEP.redraw]
         );
     },
     setup_range_options: (ids, props, init, modules, dispatches) => {
