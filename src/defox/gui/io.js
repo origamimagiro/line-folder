@@ -112,14 +112,14 @@ export const GUI_IO = {
                 return;
             }
             const file_reader = new FileReader();
-            file_reader.onload = (e) => {
+            file_reader.onload = async (e) => {
                 const doc = e.target.result;
                 let pj = button.value.split("\\");
                 pj = pj[pj.length - 1];
                 pj = pj.split(".defox");
                 pj = pj[0];
                 document.getElementById("proj_name").value = pj;
-                PRJ.steps = IO3.load(JSON.parse(doc));
+                PRJ.steps = await IO3.load(JSON.parse(doc));
                 PRJ.restore(PRJ.steps.length - 1);
                 STEP.redraw();
                 PAGE.current_idx = 0;

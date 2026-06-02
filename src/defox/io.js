@@ -242,8 +242,7 @@ export const IO3 = {    // INPUT-OUTPUT
         button.setAttribute("type", "button");
         button.click();
     },
-    load: (data_) => {
-        NOTE.log(`   - ${data_.length} steps found:`)
+    load: async (data_) => {
         if (data_[0].color) {
             DRAW.color = data_[0].color;
             document.getElementById("topcolor").value = DRAW.color.face.top;
@@ -254,35 +253,38 @@ export const IO3 = {    // INPUT-OUTPUT
             SYM.color = data_[0].symcolor;
             document.getElementById("arrowcolor").value = SYM.color.arrow;
             const defs = document.getElementById("defs");
-            fetch('./resources/defs.xml')
-                .then(response => response.text())
-                .then(xml => {
-                    const rep = xml.replaceAll("black", SYM.color.arrow)
-                    defs.innerHTML = rep;
-                });
+            const response = await fetch('./resources/defs.xml');
+            const xml = await response.text();
+            const rep = xml.replaceAll("black", SYM.color.arrow)
+            defs.innerHTML = rep;
         }
         for (const id of ["title", "title_alt", "desc0", "desc1", "desc2"]) {
             document.getElementById(id).value = data_[0][id];
         }
 
-        NOTE.start_check("recovered steps", data_);
-        for (const [i, d] of data_.entries()) {
-            NOTE.check(i);
-            LOAD.check();
-            if (!d.id) {
-                d.id = Date.now() + Math.floor(Math.random() * 100000);
+        const total = data_.length;
+        await LOAD.set(total, async (report) => {
+            for (const [i, d] of data_.entries()) {
+                IO3.load_step(i, d);
+                await report(i + 1);
             }
-            const { BF, BI } = Y.FOLD_CELL_2_BF_BI(d.fold_cp, d.cell_cp);
-            d.cell_cp.BF = BF;
-            d.cell_cp.BI = BI;
-
-            d.state_cp = Y.FOLD_CELL_2_STATE(d.fold_cp, d.cell_cp);
-            const { Vf, FV, EV, EF, FE, Ff, EA, V, VV, Vc, FU, UV, UA } = d.fold
-            PRJ.restore_params(d.params);
-            const VD = DIST.FOLD_2_VD(Vf, V);
-            d.fold_d = { V, Vf: VD, FV, EV, EF, FE, Ff, EA, VV, Vc, FU, UV, UA };
-        }
+        });
         return data_;
+    },
+
+    load_step: (idx, step_data) => {
+        if (!step_data.id) {
+            step_data.id = Date.now() + Math.floor(Math.random() * 100000);
+        }
+        const { BF, BI } = Y.FOLD_CELL_2_BF_BI(step_data.fold_cp, step_data.cell_cp);
+        step_data.cell_cp.BF = BF;
+        step_data.cell_cp.BI = BI;
+
+        step_data.state_cp = Y.FOLD_CELL_2_STATE(step_data.fold_cp, step_data.cell_cp);
+        const { Vf, FV, EV, EF, FE, Ff, EA, V, VV, Vc, FU, UV, UA } = step_data.fold
+        PRJ.restore_params(step_data.params);
+        const VD = DIST.FOLD_2_VD(Vf, V);
+        step_data.fold_d = { V, Vf: VD, FV, EV, EF, FE, Ff, EA, VV, Vc, FU, UV, UA };
     },
     normalize_L: (L) => {
         const P = [];

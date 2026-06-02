@@ -15,7 +15,7 @@ export const LOAD = {
             console.error("loading screen loading error", error);
         }
     },
-    withLoading: async (total, taskFunction) => {
+    set: async (total, taskFunction) => {
         const pr = document.getElementById("progress");
         const rem = document.getElementById("remains");
         const t0 = Date.now();

@@ -23,7 +23,7 @@ export const GUI = {
         CON.build();
         GUI_IO.startup();
         GUI_STATE.startup();
-        await LOAD.withLoading(
+        await LOAD.set(
             GUI.samples.length,
             async (report) => {
                 await GUI.build(report);
