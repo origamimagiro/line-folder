@@ -120,15 +120,6 @@ export const GUI_STATE = {
             STEP.update_component(STEP.CELL0, g, GI[g]);
         }
 
-        document.getElementById("reset_tt").onclick = (e) => {
-            for (const [i, id] of ["T0", "T1", "T2", "T3"].entries()) {
-                DIST[id] = true;
-                document.getElementById("cb_" + id).checked = true;
-            }
-            STEP.CELL_D = undefined;
-            PRJ.record(PRJ.current_idx);
-        }
-
 
         document.getElementById("range_steps").oninput = GUI_STATE.jump;
         document.getElementById("next").onclick = GUI_STATE.next;
@@ -147,13 +138,6 @@ export const GUI_STATE = {
         };
 
 
-        for (const [i, id] of ["T0", "T1", "T2", "T3"].entries()) {
-            document.getElementById("cb_" + id).onchange = (e) => {
-                DIST[id] = e.target.checked;
-                STEP.recalculate();
-                PRJ.record(PRJ.current_idx);
-            }
-        }
         document.getElementById("apply_tt").onclick = (e) => {
             STEP.recalculate();
             PRJ.record(PRJ.current_idx);

@@ -134,20 +134,11 @@
                     <input type="number" id="assign" min="1" max="1" value="1">
                     <a id="assigns">/ 1</a>
                     <p>
-                        <label for="cb_T0">taco-taco</label>
-                        <input type="checkbox" id="cb_T0" checked="true">
-                        <label for="cb_T1">taco-tortilla</label>
-                        <input type="checkbox" id="cb_T1" checked="true">
-                        <label for="cb_T2">tortilla-tortilla</label>
-                        <input type="checkbox" id="cb_T2" checked="true">
-                        <label for="cb_T3">transitivity</label>
-                        <input type="checkbox" id="cb_T3" checked="true">
+                        <label for="assign_limit">Assign Limit</label>
+                        <input type="number" id="assign_limit" min="0" value="0" max="1000">
                     </p>
                     <p>
-                        <label for="assign_limit">Assign Limit</label>
-                        <input type="number" id="assign_limit" min="0" value="20" max="1000">
-                        <button id="apply_tt">Apply</button>
-                        <button id="reset_tt">Reset</button>
+                        <button id="apply_tt">Resolve Cyclic Orders</button>
                     </p>
                 </span>
                 <span id="edit_symbol_b" class="openclose"><b>Add Symbols</b></span>
