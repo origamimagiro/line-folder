@@ -10,6 +10,8 @@ import { PRJ } from "../project.js";
 import { GUI } from "./gui.js";
 import { DIFF } from "../diff.js";
 import { SVG3 } from "../svg.js";
+import { LOAD } from "./load.js";
+import { IO3 } from "../io.js";
 
 export const GUI_STATE = {
 
@@ -133,8 +135,10 @@ export const GUI_STATE = {
         };
 
 
-        document.getElementById("apply_tt").onclick = (e) => {
-            STEP.recalculate();
+        document.getElementById("apply_tt").onclick = async (e) => {
+            await LOAD.set(2, async () => {
+                await STEP.recalculate();
+            })
             PRJ.record(PRJ.current_idx);
         }
         GUI_STATE.setup_range_options(

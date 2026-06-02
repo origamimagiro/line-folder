@@ -262,14 +262,22 @@ export const IO3 = {    // INPUT-OUTPUT
             document.getElementById(id).value = data_[0][id];
         }
 
-        const total = data_.length;
-        await LOAD.set(total, async (report) => {
+        const total = data_.reduce((sum, d_) => sum + IO3.get_size(d_), 0);
+        await LOAD.set(total, async () => {
+            let acc = 0;
             for (const [i, d] of data_.entries()) {
                 IO3.load_step(i, d);
-                await report(i + 1);
+                const curr = IO3.get_size(d);
+                acc += curr;
+                await LOAD.REPORT(acc);
             }
         });
         return data_;
+    },
+
+    get_size: (step_data) => {
+        const s = step_data.fold_cp.Ff;
+        return s ? s.length : 1;
     },
 
     load_step: (idx, step_data) => {

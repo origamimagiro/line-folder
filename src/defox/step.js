@@ -10,6 +10,7 @@ import { DRAW_LIN } from "./draw_lin.js";
 import { DRAW } from "./draw.js";
 import { DIFF } from "./diff.js";
 import { SEG } from "./segment.js";
+import { LOAD } from "./gui/load.js";
 
 export const STEP = {
     id: 0,
@@ -85,7 +86,7 @@ export const STEP = {
         STEP.update_dist();
     },
 
-    recalculate: () => {
+    recalculate: async () => {
         const FOLD = STEP.FOLD_D;
         const CELL = Y.FOLD_2_CELL(FOLD);
         CELL.BF = STEP.CELL0.BF;
@@ -94,12 +95,14 @@ export const STEP = {
         CELL.GA = STEP.CELL0.GA;
         CELL.GI = STEP.CELL0.GI;
         STEP.CELL_D = CELL;
+        if (LOAD.REPORT) await LOAD.REPORT(1);
         const T = STEP.get_transform();
         STEP.STATE = STEP.update_celled_state(FOLD, CELL, "state3", T)
         if (STEP.STATE) {
             STEP.LIN = STEP.STATE.L;
         }
         document.getElementById("apply_tt").style.background = "";
+        if (LOAD.REPORT) await LOAD.REPORT(2);
     },
 
     update_dist: () => {

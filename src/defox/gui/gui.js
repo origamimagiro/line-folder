@@ -25,16 +25,16 @@ export const GUI = {
         GUI_STATE.startup();
         await LOAD.set(
             GUI.samples.length,
-            async (report) => {
-                await GUI.build(report);
+            async () => {
+                await GUI.build();
             });
         GUI_PAGE.startup();
     },
 
-    build: async (report) => {
+    build: async () => {
         for (const [idx, sample] of GUI.samples.entries()) {
             GUI_IO.import_cp("sample", sample, idx == 0);
-            await report(idx + 1);
+            await LOAD.REPORT(idx + 1);
         }
     },
 

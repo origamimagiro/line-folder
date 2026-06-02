@@ -2,7 +2,7 @@
 export const LOAD = {
     EL: undefined,
     LEN: 30,
-
+    REPORT: undefined,
 
     startup: async () => {
         LOAD.EL = document.getElementById("loading");
@@ -21,7 +21,7 @@ export const LOAD = {
         const t0 = Date.now();
         let t1 = t0;
 
-        const report = async (current) => {
+        LOAD.REPORT = async (current) => {
             if (current > total) current = total;
             const pct = total > 0 ? current / total : 0;
             const bars = Math.floor(pct * LOAD.LEN);
@@ -46,7 +46,7 @@ export const LOAD = {
             if (rem) rem.innerHTML = "estimating...";
             LOAD.start();
             await new Promise(r => requestAnimationFrame(() => setTimeout(r, 0)));
-            await taskFunction(report);
+            await taskFunction();
             if (rem) rem.innerHTML = "completed.";
         } catch (error) {
             console.error("task failed:", error);
@@ -60,7 +60,7 @@ export const LOAD = {
 
     end: () => {
         LOAD.EL.style.visibility = "hidden";
-
+        LOAD.REPORT = undefined;
         document.getElementById("progress").innerHTML = "";
         document.getElementById("remains").innerHTML = "";
     },
