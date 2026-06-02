@@ -19,20 +19,20 @@ export const GUI_IO = {
             const is_interp = document.getElementById("crease_interp").checked;
             GUI_IO.import_cps(is_interp)
         };
-        document.getElementById("save_proj").onclick = (e) => {
+        document.getElementById("save_proj").onclick = async (e) => {
             PRJ.record(PRJ.current_idx);
             const pj = document.getElementById("proj_name").value;
-            IO3.save(PRJ.steps, pj);
+            await IO3.save(PRJ.steps, pj);
         };
         document.getElementById("import_proj").onclick = GUI_IO.import_project;
 
         document.getElementById("remove").onclick = PRJ.remove;
 
-        document.getElementById("export").onclick = (e) => {
+        document.getElementById("export").onclick = async (e) => {
             const ext = document.getElementById("export_ext").value;
             const pj = document.getElementById("proj_name").value;
 
-            IO3.write("state3", pj, ext, PRJ.current_idx);
+            await IO3.write("state3", pj, ext, PRJ.current_idx);
         };
 
 

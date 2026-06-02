@@ -14,26 +14,26 @@ import { SYM } from "./symbol.js";
 import { LOAD } from "./gui/load.js";
 
 
-export const IO3 = {    // INPUT-OUTPUT
-    write: (svg_id, name, ext, idx = undefined) => {
+export const IO3 = {
+    write: async (svg_id, name, ext, idx = undefined) => {
         if (ext == "png") {
-            return IO3.write_pngs(svg_id, name, idx);
+            return await IO3.write_pngs(svg_id, name, idx);
         }
         if (ext == "png_steps") {
-            return IO3.write_png_steps(name);
+            return await IO3.write_png_steps(name);
         }
         if (ext == "png_nonscale") {
-            return IO3.write_png_nonscale(name);
+            return await IO3.write_png_nonscale(name);
         }
         if (ext == "svg") {
-            return IO3.write_svgs(name, idx, false);
+            return await IO3.write_svgs(name, idx, false);
         }
         if (ext == "cell_svg") {
-            return IO3.write_svgs(name, idx, true);
+            return await IO3.write_svgs(name, idx, true);
         }
 
         if (ext == "cp") {
-            return IO3.write_cps(name, idx);
+            return await IO3.write_cps(name, idx);
         }
     },
 
@@ -41,7 +41,7 @@ export const IO3 = {    // INPUT-OUTPUT
         return ((n + 1) + "").padStart(3, '0');
     },
 
-    write_cps: (name, idx = undefined) => {
+    write_cps: async (name, idx = undefined) => {
         if (idx) {
             const FOLD = PRJ.steps[idx].fold_cp;
             const cp = Y.FOLD_2_CP(FOLD);
@@ -56,53 +56,65 @@ export const IO3 = {    // INPUT-OUTPUT
 
         const zip = new JSZip();
 
-        for (const [idx, step] of PRJ.steps.entries()) {
-            if (idx == 0) {
-                continue;
+        LOAD.set(PRJ.steps.length - 1,
+            async () => {
+                for (const [idx, step] of PRJ.steps.entries()) {
+                    if (idx == 0) {
+                        continue;
+                    }
+                    const FOLD = step.fold_cp;
+                    const cp = Y.FOLD_2_CP(FOLD);
+                    const num = IO3.format_num(idx);
+                    zip.file(num + ".cp", cp);
+                    await LOAD.report();
+                }
+                zip.generateAsync({ type: "blob" }).then(function (content) {
+                    saveAs(content, name + ".zip");
+                });
             }
-            const FOLD = step.fold_cp;
-            const cp = Y.FOLD_2_CP(FOLD);
-            const num = IO3.format_num(idx);
-            zip.file(num + ".cp", cp);
-        }
-        zip.generateAsync({ type: "blob" }).then(function (content) {
-            saveAs(content, name + ".zip");
-        });
+        );
 
     },
 
-    write_svgs: (name, idx = undefined, to_cell = false) => {
+    write_svgs: async (name, idx = undefined, to_cell = false) => {
         const defs = document.getElementById("defs").firstElementChild;
         if (idx) {
-            const book = document.createElement("svg");
-            book.setAttribute("xmlns", SVG.NS);
-            book.appendChild(defs.cloneNode(true));
-            const [s, b] = [SVG.SCALE, SVG3.MARGIN]
-            book.setAttribute("width", s);
-            book.setAttribute("height", s);
-            book.setAttribute("x", 0);
-            book.setAttribute("y", 0);
-            book.setAttribute("viewBox", [-b, -b, s + 2 * b, s + 2 * b].join(" "));
+            LOAD.set(1, async () => {
+                const book = document.createElement("svg");
+                book.setAttribute("xmlns", SVG.NS);
+                book.appendChild(defs.cloneNode(true));
+                const [s, b] = [SVG.SCALE, SVG3.MARGIN]
+                book.setAttribute("width", s);
+                book.setAttribute("height", s);
+                book.setAttribute("x", 0);
+                book.setAttribute("y", 0);
+                book.setAttribute("viewBox", [-b, -b, s + 2 * b, s + 2 * b].join(" "));
 
-            PAGE.draw_step(book, PRJ.steps[idx], idx, to_cell, false)
-            IO3.write_svg(book, name, idx);
+                PAGE.draw_step(book, PRJ.steps[idx], idx, to_cell, false)
+                IO3.write_svg(book, name, idx);
+                await LOAD.report();
+
+            })
             return;
         }
 
         const pages = PAGE.get_pages(PRJ.steps);
         const w = PAGE.dim.width;
         const h = PAGE.dim.height;
-        for (let j = 0; j < pages; j++) {
-            const book = document.createElement("svg");
-            book.setAttribute("xmlns", SVG.NS);
-            book.appendChild(defs.cloneNode(true));
-            book.setAttribute("width", w);
-            book.setAttribute("height", h);
-            PAGE.current_idx = j;
-            const svg_page = SVG.append("g", book);
-            PAGE.redraw(svg_page, PRJ.steps, defs, to_cell, [0, 0]);
-            IO3.write_svg(book, name, j);
-        }
+        LOAD.set(pages, async () => {
+            for (let j = 0; j < pages; j++) {
+                const book = document.createElement("svg");
+                book.setAttribute("xmlns", SVG.NS);
+                book.appendChild(defs.cloneNode(true));
+                book.setAttribute("width", w);
+                book.setAttribute("height", h);
+                PAGE.current_idx = j;
+                const svg_page = SVG.append("g", book);
+                PAGE.redraw(svg_page, PRJ.steps, defs, to_cell, [0, 0]);
+                IO3.write_svg(book, name, j);
+                await LOAD.report();
+            }
+        })
     },
     write_svg: (svg, name, idx) => {
         const img = new Blob([svg.outerHTML], {
@@ -114,7 +126,7 @@ export const IO3 = {    // INPUT-OUTPUT
         link.setAttribute("href", window.URL.createObjectURL(img));
         link.dispatchEvent(new MouseEvent("click"));
     },
-    write_pngs: (svg_id, name, idx = undefined) => {
+    write_pngs: async (svg_id, name, idx = undefined) => {
         if (idx) {
             PRJ.restore(idx);
             const width = SVG.SCALE;
@@ -123,56 +135,72 @@ export const IO3 = {    // INPUT-OUTPUT
             IO3.write_png(document.getElementById(svg_id), name, dim, idx);
             return;
         }
-        for (let j = 0; j < PAGE.get_pages(PRJ.steps); j++) {
-            PAGE.current_idx = j;
+        const pages = PAGE.get_pages(PRJ.steps);
+        LOAD.set(pages,
+            async () => {
+                for (let j = 0; j < pages; j++) {
+                    PAGE.current_idx = j;
 
-            const svg_page = SVG.clear("png");
-            const defs = document.getElementById("defs").firstElementChild;
-            svg_page.appendChild(defs.cloneNode(true));
-            const svg = PAGE.redraw(svg_page, PRJ.steps);
+                    const svg_page = SVG.clear("png");
+                    const defs = document.getElementById("defs").firstElementChild;
+                    svg_page.appendChild(defs.cloneNode(true));
+                    const svg = PAGE.redraw(svg_page, PRJ.steps);
 
-            const width = PAGE.dim.width;
-            const height = PAGE.dim.height;
-            const dim = { width, height };
-            IO3.write_png(svg, name + "_page_", dim, j);
-        }
-        document.getElementById("png").setAttribute("style", "display:none");
-        SVG.clear("png");
+                    const width = PAGE.dim.width;
+                    const height = PAGE.dim.height;
+                    const dim = { width, height };
+                    IO3.write_png(svg, name + "_page_", dim, j);
+                    await LOAD.report();
+                }
+                document.getElementById("png").setAttribute("style", "display:none");
+                SVG.clear("png");
+            }
+        );
     },
     write_png_steps: async (name) => {
         const zip = new JSZip();
-        for (const [idx, step] of PRJ.steps.entries()) {
-            const height = SVG.SCALE + 2 * SVG3.MARGIN;
-            const width = 2 * height;
-            const dim = { width, height };
-            const step_after = PRJ.steps[idx + 1];
-            const svg = PAGE.get_tutorial_svg(step, step_after, idx);
-            const blob = await IO3.get_png_blob(svg, dim);
-            const num = IO3.format_num(idx);
-            const file_name = `${name}_${num}.png`;
-            zip.file(file_name, blob);
-        }
-        zip.generateAsync({ type: "blob" })
-            .then(function (content) {
-                saveAs(content, name + ".zip");
-            });
+        LOAD.set(PRJ.steps.length,
+            async () => {
+                for (const [idx, step] of PRJ.steps.entries()) {
+                    const height = SVG.SCALE + 2 * SVG3.MARGIN;
+                    const width = 2 * height;
+                    const dim = { width, height };
+                    const step_after = PRJ.steps[idx + 1];
+                    const svg = PAGE.get_tutorial_svg(step, step_after, idx);
+                    const blob = await IO3.get_png_blob(svg, dim);
+                    const num = IO3.format_num(idx);
+                    const file_name = `${name}_${num}.png`;
+                    zip.file(file_name, blob);
+                    await LOAD.report();
+                }
+                zip.generateAsync({ type: "blob" })
+                    .then(function (content) {
+                        saveAs(content, name + ".zip");
+                    });
+            }
+        );
     },
     write_png_nonscale: async (name) => {
         const zip = new JSZip();
-        for (const [idx, step] of PRJ.steps.entries()) {
-            const height = SVG.SCALE + 2 * SVG3.MARGIN;
-            const width = height;
-            const dim = { width, height };
-            const svg = PAGE.get_nonscale_svg(step, idx);
-            const blob = await IO3.get_png_blob(svg, dim);
-            const num = IO3.format_num(idx);
-            const file_name = `${name}_${num}.png`;
-            zip.file(file_name, blob);
-        }
-        zip.generateAsync({ type: "blob" })
-            .then(function (content) {
-                saveAs(content, name + ".zip");
-            });
+        LOAD.set(PRJ.steps.length,
+            async () => {
+                for (const [idx, step] of PRJ.steps.entries()) {
+                    const height = SVG.SCALE + 2 * SVG3.MARGIN;
+                    const width = height;
+                    const dim = { width, height };
+                    const svg = PAGE.get_nonscale_svg(step, idx);
+                    const blob = await IO3.get_png_blob(svg, dim);
+                    const num = IO3.format_num(idx);
+                    const file_name = `${name}_${num}.png`;
+                    zip.file(file_name, blob);
+                    await LOAD.report();
+                }
+                zip.generateAsync({ type: "blob" })
+                    .then(function (content) {
+                        saveAs(content, name + ".zip");
+                    });
+            }
+        );
     },
     get_png_blob: (svg, dim) => {
         const svgData = new XMLSerializer().serializeToString(svg);
@@ -211,36 +239,41 @@ export const IO3 = {    // INPUT-OUTPUT
         image.src = "data:image/svg+xml;charset=utf-8;base64," + btoa(unescape(encodeURIComponent(svgData)));
     },
 
-    save: (data, name) => {
+    save: async (data, name) => {
         const data_ = [];
-        for (const d of data) {
-            const d_ = {};
-            for (const key of ["id", "fold_cp", "fold", "cell_d", "params", "lin", "symbols"]) {
-                d_[key] = d[key];
-            }
-            d_.cell_cp = {};
-            for (const key of ["P", "SP", "SE", "PP", "CP", "CS", "SC", "CF", "FC", "GB", "GA", "GI"]) {
-                d_.cell_cp[key] = d.cell_cp[key];
-            }
-            data_.push(d_);
-        }
-        data_[0].color = DRAW.color;
-        data_[0].symcolor = SYM.color;
+        LOAD.set(data.length,
+            async () => {
+                for (const d of data) {
+                    const d_ = {};
+                    for (const key of ["id", "fold_cp", "fold", "cell_d", "params", "lin", "symbols"]) {
+                        d_[key] = d[key];
+                    }
+                    d_.cell_cp = {};
+                    for (const key of ["P", "SP", "SE", "PP", "CP", "CS", "SC", "CF", "FC", "GB", "GA", "GI"]) {
+                        d_.cell_cp[key] = d.cell_cp[key];
+                    }
+                    data_.push(d_);
+                    await LOAD.report();
+                }
+                data_[0].color = DRAW.color;
+                data_[0].symcolor = SYM.color;
 
-        for (const id of ["title", "title_alt", "desc0", "desc1", "desc2"]) {
-            data_[0][id] = document.getElementById(id).value;
-        }
-        const json = new Blob([JSON.stringify(data_, undefined, 2)], {
-            type: "application/json"
-        })
-        const ext = "defox";
-        const link = document.createElement("a");
-        const button = document.createElement("input");
-        link.appendChild(button);
-        link.setAttribute("download", `${name}.${ext}`);
-        link.setAttribute("href", window.URL.createObjectURL(json));
-        button.setAttribute("type", "button");
-        button.click();
+                for (const id of ["title", "title_alt", "desc0", "desc1", "desc2"]) {
+                    data_[0][id] = document.getElementById(id).value;
+                }
+                const json = new Blob([JSON.stringify(data_, undefined, 2)], {
+                    type: "application/json"
+                })
+                const ext = "defox";
+                const link = document.createElement("a");
+                const button = document.createElement("input");
+                link.appendChild(button);
+                link.setAttribute("download", `${name}.${ext}`);
+                link.setAttribute("href", window.URL.createObjectURL(json));
+                button.setAttribute("type", "button");
+                button.click();
+            }
+        );
     },
     load: async (data_) => {
         if (data_[0].color) {

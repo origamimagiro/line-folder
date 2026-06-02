@@ -14,10 +14,10 @@ export const GUI_PAGE = {
             .then(xml => {
                 preview.innerHTML = xml;
 
-                document.getElementById("page_export").onclick = (e) => {
+                document.getElementById("page_export").onclick = async (e) => {
                     const ext = document.getElementById("page_export_ext").value;
                     const pj = document.getElementById("proj_name").value;
-                    IO3.write("page", pj, ext);
+                    await IO3.write("page", pj, ext);
                 };
 
                 document.getElementById("make_title").onclick = (e) => {
