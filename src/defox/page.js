@@ -196,7 +196,7 @@ export const PAGE = {
 
         if (to_cell) {
             if (CELL) {
-                const STATE = Y.FOLD_CELL_2_STATE(FOLD, CELL);
+                const STATE = step.state ?? Y.FOLD_CELL_2_STATE(FOLD, CELL);
                 DRAW.draw_state(panel_d, FOLD, CELL, STATE, T, clip, id, symbols, origin);
             }
             else {
@@ -208,12 +208,12 @@ export const PAGE = {
                     GA: step.cell_cp.GA,
                     GI: step.cell_cp.GI
                 }
-                const STATE = Y.FOLD_CELL_2_STATE(FOLD, C);
+                const STATE = step.state ?? Y.FOLD_CELL_2_STATE(FOLD, C);
                 DRAW.draw_state(panel_d, FOLD, CELL_d, STATE, T, clip, id, symbols, origin);
             }
         } else {
             if (CELL) {
-                const STATE = Y.FOLD_CELL_2_STATE(FOLD, CELL);
+                const STATE = step.state ?? Y.FOLD_CELL_2_STATE(FOLD, CELL);
                 DRAW.draw_state(panel_d, FOLD, CELL, STATE, T, clip, id, symbols, origin);
             } else {
                 DRAW_LIN.draw_state(panel_d, FOLD, step.lin.S, T, clip, depth, id, symbols, render_all, origin);
