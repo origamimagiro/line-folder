@@ -34,7 +34,7 @@ export const GUI = {
     build: async () => {
         for (const [idx, sample] of GUI.samples.entries()) {
             GUI_IO.import_cp("sample", sample, idx == 0);
-            await LOAD.REPORT(idx + 1);
+            await LOAD.report();
         }
     },
 

@@ -95,14 +95,14 @@ export const STEP = {
         CELL.GA = STEP.CELL0.GA;
         CELL.GI = STEP.CELL0.GI;
         STEP.CELL_D = CELL;
-        if (LOAD.REPORT) await LOAD.REPORT(1);
+        await LOAD.report();
         const T = STEP.get_transform();
         STEP.STATE = STEP.update_celled_state(FOLD, CELL, "state3", T)
         if (STEP.STATE) {
             STEP.LIN = STEP.STATE.L;
         }
         document.getElementById("apply_tt").style.background = "";
-        if (LOAD.REPORT) await LOAD.REPORT(2);
+        await LOAD.report();
     },
 
     update_dist: () => {

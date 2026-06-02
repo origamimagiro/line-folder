@@ -3,7 +3,11 @@ export const LOAD = {
     EL: undefined,
     LEN: 30,
     REPORT: undefined,
+    CURR: 0,
 
+    report: async () => {
+        if (LOAD.REPORT) await LOAD.REPORT();
+    },
     startup: async () => {
         LOAD.EL = document.getElementById("loading");
         try {
@@ -20,8 +24,10 @@ export const LOAD = {
         const rem = document.getElementById("remains");
         const t0 = Date.now();
         let t1 = t0;
-
-        LOAD.REPORT = async (current) => {
+        LOAD.CURR = 0;
+        LOAD.REPORT = async () => {
+            const current = LOAD.CURR + 1;
+            LOAD.CURR = current;
             if (current > total) current = total;
             const pct = total > 0 ? current / total : 0;
             const bars = Math.floor(pct * LOAD.LEN);
@@ -61,6 +67,7 @@ export const LOAD = {
     end: () => {
         LOAD.EL.style.visibility = "hidden";
         LOAD.REPORT = undefined;
+        LOAD.CURR = 0;
         document.getElementById("progress").innerHTML = "";
         document.getElementById("remains").innerHTML = "";
     },

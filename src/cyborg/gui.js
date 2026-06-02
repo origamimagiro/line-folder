@@ -4,6 +4,7 @@ import { PAINT } from "./paint.js";
 import { STEP } from "../defox/step.js";
 import { SVG3 } from "../defox/svg.js";
 import { ACT } from "./action.js";
+import { LOAD } from "../defox/gui/load.js";
 
 export const GUI = {
 
@@ -40,7 +41,7 @@ export const GUI = {
                 const trim = document.getElementById("cpedit_trim");
 
                 const bg = [mv, input_angle, input_free, input_bisector, move, to_m, to_aux, to_v, input_mirror];
-                closeButton.onclick = GUI.close;
+                closeButton.onclick = async () => await GUI.close();
                 discardButton.onclick = GUI.discard;
 
                 showButton.onclick = GUI.open;
@@ -183,46 +184,42 @@ export const GUI = {
         PAINT.initialize(FOLD, svg);
         PAINT.redraw();
     },
-    close: () => {
+    close: async () => {
         const dialog = document.getElementById("cpeditor");
         if (PAINT.is_invalid) {
             alert("The Crease Pattern is not Flat Foldable.");
             return;
         }
-        if (PAINT.saves.length > 1) {
-            const res = confirm("Are you sure to apply changes to the step?");
-            if (!res) {
-                return;
-            }
-        }
         dialog.close();
+        LOAD.set(3, async () => await GUI.calculate());
+    },
+
+    calculate: async () => {
         const is_interp = document.getElementById("cpedit_crease_interp").checked;
         const i = PRJ.current_idx;
         const { FOLD, CELL } = PAINT.get_FOLD_CELL(i, is_interp);
         PRJ.steps[i].fold_cp = FOLD;
         PRJ.steps[i].cell_cp = CELL;
+        await LOAD.report();
 
         PRJ.restore(i - 1);
         STEP.update_states();
         STEP.update_dist();
         PRJ.record(i - 1);
         PRJ.restore(i);
+        await LOAD.report();
 
         STEP.update_states();
         STEP.update_dist();
         PRJ.record(i);
         STEP.redraw();
         PAINT.reset();
+        await LOAD.report();
+
     },
 
     discard: () => {
         const dialog = document.getElementById("cpeditor");
-        if (PAINT.saves.length > 1) {
-            const res = confirm("Are you sure to discard changes to the crese pattern?");
-            if (!res) {
-                return;
-            }
-        }
         dialog.close();
     },
     set_svg: (id) => {
