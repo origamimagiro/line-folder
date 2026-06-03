@@ -1,32 +1,38 @@
 <button id="discardDialog" class="discardclose">&#xe040;</button>
 <button id="closeDialog" class="discardclose"><i class="bi bi-floppy"></i></button>
+<label for="cpedit_crease_interp">Crease Interpolation</label>
+<input type="checkbox" id="cpedit_crease_interp" checked>
+<span>
+    <button id="cpedit_undo" class="gryph">&#xe02E;</button>
+    <button id="cpedit_redo" class="gryph">&#xe02F;</button>
+</span>
+<span>
+    <span>360°/</span>
+    <input type="number" id="cpedit_angle_num" min="4" max="24" value="16" step="1">
+</span>
+<span>
+    <button id="cpedit_reset" class="gryph">&#xe041;</button>
+    <button id="cpedit_zoomout" class="gryph">&#xe048;</button>
+    <button id="cpedit_move" class="gryph">&#xe045;</button>
+    <button id="cpedit_zoomin" class="gryph">&#xe049;</button>
+</span>
+
 <div class="cpeditor_body">
     <div class="tools">
         <div class="tool_buttons">
-            <div>
-                <button id="cpedit_undo">&#xe02E;</button>
-                <button id="cpedit_redo">&#xe02F;</button>
-            </div>
-            <button id="cpedit_reset">&#xe041;</button>
-            <button id="cpedit_zoomout">&#xe048;</button>
-            <button id="cpedit_move">&#xe045;</button>
-            <button id="cpedit_zoomin">&#xe049;</button>
-            <button id="cpedit_mv">&#xe01B;</button>
-            <button id="cpedit_input_angle">&#xe04C;</button>
-            <span>360°/</span>
-            <input type="number" id="cpedit_angle_num" min="4" max="24" value="16" step="1">
-            <button id="cpedit_input_free">&#xe000;</button>
-            <button id="cpedit_input_mirror">&#xe009;</button>
-            <button id="cpedit_input_bisector">&#xe006;</button><button id="cpedit_copy">&#xe012;</button>
-            <button id="cpedit_to_m" style="color:red">&#xe017;</button>
-            <button id="cpedit_to_v" style="color:blue">&#xe018;</button>
-            <button id="cpedit_to_aux" style="color:gray">&#xe01A;</button>
-            <button id="cpedit_trim">&#xe022;</button>
-            <button id="cpedit_input_a" class="cpedit_input_a">M</button>
-            <label for="cpedit_crease_interp">Crease Interpolation</label>
-            <input type="checkbox" id="cpedit_crease_interp" checked>
-
-            <span id="pt_loc" style="display: none;"></span>
+            <span>
+                <button id ="cpedit_delete">&#xe013;</button>
+                <button id="cpedit_mv">&#xe01B;</button>
+                <button id="cpedit_input_angle">&#xe04C;</button>
+                <button id="cpedit_input_free">&#xe000;</button>
+                <button id="cpedit_input_mirror">&#xe009;</button>
+                <button id="cpedit_input_bisector">&#xe006;</button>
+                <!-- <button id="cpedit_copy">&#xe012;</button> -->
+                <button id="cpedit_to_m" style="color:red">&#xe017;</button>
+                <button id="cpedit_to_v" style="color:blue">&#xe018;</button>
+                <button id="cpedit_to_aux" style="color:gray">&#xe01A;</button>
+                <button id="cpedit_input_a" class="cpedit_input_a">M</button>
+            </span>
         </div>
     </div>
     <svg id="cpedit" class="paint_edit"></svg>

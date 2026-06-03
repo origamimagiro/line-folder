@@ -13,7 +13,7 @@
 
 .tool_buttons button {
     font-family: 'Icons';
-    font-size: large;
+    font-size: x-large;
     user-select: none;
 }
 
@@ -36,8 +36,8 @@
 }
 
 .tool_buttons .cpedit_input_a {
-    height: 30px;
-    width: 30px;
+    height: 35px;
+    width: 35px;
     color: white;
     background-color: red;
     user-select: none;

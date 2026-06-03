@@ -24,9 +24,6 @@ export const PAINT = {
     EA: [],
     segs: [],
 
-
-
-
     VK: [],
     svg: undefined,
     svg_selection: undefined,
@@ -78,9 +75,6 @@ export const PAINT = {
         PAINT.svg = svg;
         PAINT.VK = [];
         PAINT.is_invalid = false;
-        // PAINT.cx = .5;
-        // PAINT.cy = .5;
-        // PAINT.scale = 1;
         PAINT.saves = [];
         PAINT.save_idx = 0;
         const CP = Z.segs_2_CP(PAINT.segs, PAINT.EA);
@@ -180,7 +174,6 @@ export const PAINT = {
         PAINT.is_invalid = false;
         PAINT.saves = [];
         PAINT.save_idx = 0;
-        // PAINT.reset_view();
         PAINT.redraw();
     },
 

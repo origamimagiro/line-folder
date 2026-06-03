@@ -2,6 +2,12 @@ body {
     font-family: sans-serif;
 }
 
+.gryph {
+    font-family: 'Icons';
+    font-size: x-large;
+    user-select: none;
+}
+
 input[type="range"] {
     width: 400px;
 }
