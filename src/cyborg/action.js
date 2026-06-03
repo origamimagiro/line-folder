@@ -42,6 +42,7 @@ export const ACT = {
     },
 
     onclick: (e) => {
+        ACT.hilight(e);
         if (PAINT.current_mode == "move") {
             [PAINT.cx, PAINT.cy] = PAINT.vertex;
             PAINT.redraw();
