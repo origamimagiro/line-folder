@@ -191,7 +191,7 @@ export const PAINT = {
         seg_svg.setAttribute("stroke-width", 6);
     },
     hilight_vertex: (svg, v_idx) => {
-        if (!v_idx) { return; }
+        if (v_idx < 0 || v_idx == undefined) { return; }
         const s = SVG.SCALE;
 
         const v = PAINT.vertices[v_idx];
