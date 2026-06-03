@@ -22,6 +22,8 @@ export const GUI = {
                 const svg = document.getElementById("cpedit");
                 const input_angle_num = document.getElementById("cpedit_angle_num");
                 const input_a = document.getElementById("cpedit_input_a");
+
+                const del = document.getElementById("cpedit_delete");
                 const mv = document.getElementById("cpedit_mv");
                 const to_m = document.getElementById("cpedit_to_m");
                 const to_v = document.getElementById("cpedit_to_v");
@@ -38,7 +40,7 @@ export const GUI = {
                 const undo = document.getElementById("cpedit_undo");
                 const redo = document.getElementById("cpedit_redo");
 
-                const bg = [mv, input_angle, input_free, input_bisector, move, to_m, to_aux, to_v, input_mirror];
+                const bg = [del, mv, input_angle, input_free, input_bisector, move, to_m, to_aux, to_v, input_mirror];
                 closeButton.onclick = async () => await GUI.close();
                 discardButton.onclick = GUI.discard;
 
@@ -48,6 +50,12 @@ export const GUI = {
                 svg.onmouseleave = PAINT.onmouseout;
                 svg.oncontextmenu = ACT.oncontextmenu;
                 input_a.onclick = GUI.toggle_input_a;
+
+                del.onclick = () => {
+                    PAINT.set_mode("del");
+                    GUI.reset_bg(bg, del);
+
+                }
                 mv.onclick = () => {
                     PAINT.set_mode("mv");
                     GUI.reset_bg(bg, mv);

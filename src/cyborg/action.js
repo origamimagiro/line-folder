@@ -21,6 +21,9 @@ export const ACT = {
             PAINT.vertex = p_cursor;
             return;
         }
+        if (ACT.hilight_del_segs(p_cursor)) {
+            return;
+        }
         if (ACT.hilight_input_segs(p_cursor)) {
             return;
         };
@@ -42,6 +45,10 @@ export const ACT = {
         if (PAINT.current_mode == "move") {
             [PAINT.cx, PAINT.cy] = PAINT.vertex;
             PAINT.redraw();
+            return;
+        }
+        if (PAINT.current_mode == "del") {
+            ACT.remove(e)
             return;
         }
         if (ACT.click_input_seg(e)) {
@@ -79,6 +86,18 @@ export const ACT = {
         };
 
         ACT.remove(e);
+    },
+
+
+    hilight_del_segs: (p_cursor) => {
+        if (PAINT.current_mode == "del") {
+            const seg = L.find_seg(
+                p_cursor,
+                PAINT.segs,
+                PAINT.EA);
+            PAINT.hilight_mv(seg);
+            return true;
+        }
     },
     hilight_input_segs: (p_cursor) => {
         if (PAINT.current_mode == "mv"

@@ -11,6 +11,7 @@ import { L } from "./lath.js";
 import { DRAW } from "./draw.js";
 import { STEP } from "../defox/step.js";
 import { Z } from "./z.js";
+import { ACT } from "./action.js";
 
 
 
@@ -79,6 +80,7 @@ export const PAINT = {
         PAINT.save_idx = 0;
         const CP = Z.segs_2_CP(PAINT.segs, PAINT.EA);
         PAINT.update_cp(CP);
+        PAINT.record();
     },
 
     get_FOLD_CELL: (idx, is_interp) => {
@@ -314,13 +316,19 @@ export const PAINT = {
     undo: () => {
         const i = Math.max(0, PAINT.save_idx - 2);
         PAINT.recall(i);
-        PAINT.redraw();
+        const segs = PAINT.segs;
+        const assigns = PAINT.EA;
+        const CP = Z.segs_2_CP(segs, assigns);
+        PAINT.update_cp(CP);
     },
 
     redo: () => {
         const i = Math.min(PAINT.saves.length - 1, PAINT.save_idx);
         PAINT.recall(i);
-        PAINT.redraw();
+        const segs = PAINT.segs;
+        const assigns = PAINT.EA;
+        const CP = Z.segs_2_CP(segs, assigns);
+        PAINT.update_cp(CP);
     },
 
 }
