@@ -36,7 +36,7 @@ export const LOAD = {
             }
             if (current > 0 && current < total && rem) {
                 const t = Date.now() - t0;
-                const est_ms = t * (total - current) / total;
+                const est_ms = t * (total - current) / current;
                 rem.innerHTML = LOAD.time_str(est_ms);
             }
             const now = Date.now();
