@@ -6,16 +6,10 @@ import { GUI_STATE } from "./state.js";
 import { GUI_PAGE } from "./page.js";
 import { GUI_IO } from "./io.js";
 import { LOAD } from "./load.js";
-
+import { IO3 } from "../io.js";
+import { STEP } from "../step.js";
+import { PAGE } from "../page.js";
 export const GUI = {
-    samples: [
-        SMPL.hf,
-        SMPL.sq,
-        SMPL.windmil,
-        SMPL.hf,
-        SMPL.nonlin,
-        SMPL.sq,
-        SMPL.hanikamu],
 
     startup: async () => {
         const defs = document.getElementById("defs");
@@ -23,18 +17,23 @@ export const GUI = {
         CON.build();
         GUI_IO.startup();
         GUI_STATE.startup();
-        await LOAD.set(
-            GUI.samples.length,
-            async () => {
-                await GUI.build();
-            });
         GUI_PAGE.startup();
+        await GUI.build();
+        PRJ.redraw_page();
     },
 
     build: async () => {
-        for (const [idx, sample] of GUI.samples.entries()) {
-            GUI_IO.import_cp("sample", sample, idx == 0);
-            await LOAD.report();
+        try {
+            const response = await fetch('./resources/NewProject.defox');
+            const j = await response.json();
+            PRJ.steps = await IO3.load(j);
+            PRJ.restore(PRJ.steps.length - 1);
+            STEP.redraw();
+            PAGE.current_idx = 0;
+            PRJ.redraw_page();
+        }
+        catch (error) {
+            console.error("sample load error:", error)
         }
     },
 

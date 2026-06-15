@@ -109,7 +109,7 @@ export const GUI_PAGE = {
                 GUI.open_close("option_text", "inline");
                 GUI.open_close("option_layout", "inline");
                 GUI.open_close("option_dim", "inline");
-                PRJ.redraw_page();
+
             });
     },
 
