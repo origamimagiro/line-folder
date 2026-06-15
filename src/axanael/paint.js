@@ -88,6 +88,7 @@ export const PAINT = {
         }
     },
     onclick: (e) => {
+        PAINT.onmove(e);
         const c_idx = PAINT.segment != undefined ? PAINT.segment[0] : undefined;
         const v_idx = PAINT.vertex;
 
