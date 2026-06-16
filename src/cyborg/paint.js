@@ -183,6 +183,7 @@ export const PAINT = {
         PAINT.scale = 1;
         PAINT.cx = .5;
         PAINT.cy = .5;
+        PAINT.redraw();
     },
 
     get_pointer_loc: (e) => {
