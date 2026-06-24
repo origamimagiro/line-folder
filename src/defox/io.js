@@ -245,7 +245,7 @@ export const IO3 = {
             async () => {
                 for (const d of data) {
                     const d_ = {};
-                    for (const key of ["id", "fold_cp", "fold", "cell_d", "params", "lin", "symbols"]) {
+                    for (const key of ["id", "fold_cp", "fold", "cell_d", "params", "lin", "symbols", "catalyst"]) {
                         d_[key] = d[key];
                     }
                     d_.cell_cp = {};
@@ -313,9 +313,15 @@ export const IO3 = {
         step_data.cell_cp.BI = BI;
 
         step_data.state_cp = Y.FOLD_CELL_2_STATE(step_data.fold_cp, step_data.cell_cp);
+
         const { Vf, FV, EV, EF, FE, Ff, EA, V, VV, Vc, FU, UV, UA } = step_data.fold
-        PRJ.restore_params(step_data.params);
-        const VD = DIST.FOLD_2_VD(Vf, V);
+
+        let catalyst = V;
+        if (step_data.catalyst != undefined) {
+            catalyst = step_data.catalyst.Vf;
+        }
+
+        const VD = DIST.FOLD_2_VD(Vf, catalyst);
         step_data.fold_d = { V, Vf: VD, FV, EV, EF, FE, Ff, EA, VV, Vc, FU, UV, UA };
     },
     normalize_L: (L) => {
