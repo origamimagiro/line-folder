@@ -320,7 +320,7 @@ export const IO3 = {
         if (step_data.catalyst != undefined) {
             catalyst = step_data.catalyst.Vf;
         }
-
+        PRJ.restore_params(step_data.params);
         const VD = DIST.FOLD_2_VD(Vf, catalyst);
         step_data.fold_d = { V, Vf: VD, FV, EV, EF, FE, Ff, EA, VV, Vc, FU, UV, UA };
     },
