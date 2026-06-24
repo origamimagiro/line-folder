@@ -161,14 +161,14 @@ const MAIN = {
         FOLD.EA = EA;
         FOLD.Vf = X.V_FV_EV_EA_2_Vf_Ff(V, FV, EV, EA)[0];
         if (M.polygon_area2(M.expand(FOLD.FV[0], FOLD.Vf)) < 0) {
-            FOLD.Vf = FOLD.Vf.map(v => M.add(M.refY(v), [0, 1]));
+            FOLD.Vf = FOLD.Vf.map(v => M.refY(v));
         }
         const v0 = FOLD.Vf[0];
         FOLD.Vf = FOLD.Vf.map(p => M.sub(p, v0));
         const [c1, s1] = FOLD.Vf[1];
         FOLD.Vf = FOLD.Vf.map(p => M.rotate_cos_sin(p, c1, -s1));
         FOLD.Vf = FOLD.Vf.map(p => M.rotate_cos_sin(p, 0, 1));
-        FOLD.Vf = MAIN.V_P_transform(FOLD.Vf, FOLD.Vf);
+        FOLD.Vf = MAIN.V_P_transform(FOLD.Vf, FOLD.Vf, false);
         const Vf = FOLD.Vf;
         // rendering
         const cp = SVG.clear("cp");
@@ -339,7 +339,8 @@ const MAIN = {
         const [FOLD, CELL] = FS[FS.length - 1];
         const {Ff, EF, FO} = FOLD;
         const {P, PP, CP, CF, SP, SC, SE} = CELL;
-        const Q = MAIN.V_P_transform(P, P);
+        const flip = document.getElementById("flip").checked;
+        const Q = MAIN.V_P_transform(P, P, flip);
         const edges = FO.map(([f1, f2, o]) => {
             return M.encode(((Ff[f2] ? 1 : -1)*o >= 0) ? [f1, f2] : [f2, f1]);
         });
@@ -350,7 +351,6 @@ const MAIN = {
             slider.setAttribute("max", LL.length);
         }
         const CD = X.CF_edges_2_CD(CF, edges); // CF ordered in state
-        const flip = document.getElementById("flip").checked;
         const Ctop = CD.map(S => flip ? S[0] : S[S.length - 1]);
         const Ccolor = Ctop.map(d => {
             if (d == undefined) { return undefined; }
@@ -505,8 +505,9 @@ const MAIN = {
         }
         const svg = SVG.clear("lines");
         if (L.length == 0) { return; }
+        const flip = document.getElementById("flip").checked;
         SVG.draw_segments(svg,
-            L.map(l => MAIN.V_P_transform(MAIN.line_2_coords(l), P)),
+            L.map(l => MAIN.V_P_transform(MAIN.line_2_coords(l), P, flip)),
             {id: true}
         );
         for (let j = 0; j < L.length; ++j) {    // interface
@@ -517,7 +518,7 @@ const MAIN = {
             el.onclick = () => MAIN.line_click(el, Array.from(lfP), L[j], FS);
         }
     },
-    V_P_transform: (V, P) => {
+    V_P_transform: (V, P, flip) => {
         // rescales V based on normalizing P into a [0, 1] bounding box
         const [p_min, p_max] = M.bounding_box(P);
         const [x_diff, y_diff] = M.sub(p_max, p_min);
@@ -525,7 +526,6 @@ const MAIN = {
         const diff = is_tall ? y_diff : x_diff;
         const m = [0.5, 0.5];
         const off = M.sub(m, M.div([x_diff, y_diff], 2*diff));
-        const flip = document.getElementById("flip").checked;
         return V.map(p => M.add(M.div(M.sub(p, p_min), diff), off))
                 .map(p => (flip ? M.add(M.refX(M.sub(p, m)), m) : p));
     },
@@ -1177,8 +1177,12 @@ const MAIN = {
             vertices_coords:  Vf,
             faces_vertices:   FV,
             edges_vertices:   EV,
-            edges_assignment: EA,
+            edges_assignment: EA.map(a => ( // as seen from colored side
+                (a == "M") ? "V" : (
+                (a == "V") ? "M" : a
+            ))),
         };
+        console.log("HERE");
         const cp_data = new Blob([JSON.stringify(export_cp, undefined, 2)], {
             type: "application/json"});
         const cp_link = document.getElementById("cp_anchor");
