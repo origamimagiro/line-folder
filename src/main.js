@@ -8,17 +8,15 @@ import { CON } from "./flatfolder/constraints.js";
 
 window.onload = () => { MAIN.startup(); };  // entry point
 
-const TYPES = [
-    "PURELAND",
-    "INSIDE_REVERSE",
-    "OUTSIDE_REVERSE",
-    "MIXED_REVERSE",
-    "OPEN_SINK",
-    "CLOSED_SINK",
-    "MIXED_SINK",
-    "INVALID",
+const TYPE_LABEL = [
+    "Pureland",
+    "Inside Reverse",   "Outside Reverse",  "Mixed Reverse",
+    "Open Sink",        "Closed Sink",      "Mixed Sink",
+    "Complex",
 ];
-const TYPE = Object.fromEntries(TYPES.map((t, i) => [t, i]));
+const TYPE = Object.fromEntries(TYPE_LABEL
+    .map(t => t.toUpperCase().replaceAll(" ", "_"))
+    .map((t, i) => [t, i]));
 
 const COLOR = {
     normal: "black", select: "blue", active: "red",
@@ -29,7 +27,7 @@ const COLOR = {
     },
 };
 const OPACITY = {normal: 1, hidden: 0.01};
-const LENGTH = {normal: 10, select: 20};
+const LENGTH = {half: 5, normal: 10, select: 20};
 const STYLE = {
     apply: (el, style) => {
         for (const [k, v] of Object.entries(style)) { el.setAttribute(k, v); }
@@ -185,7 +183,7 @@ const MAIN = {
         if (FM != undefined) {
             const [type, RF, FR, EC, V_sink, V_border] = MAIN.classify(
                 V, EV, EF, FE, Ff, FM, FO, FOO);
-            console.log(` ** Fold type: ${TYPES[type]}`);
+            console.log(` ** Fold type: ${TYPE_LABEL[type]}`);
             const g = document.getElementById("notes");
             const CLS = ["", "white", "black", "gray"];
             if (V_sink.length > 0) {
@@ -215,7 +213,7 @@ const MAIN = {
             for (let i = 0; i < RF.length; ++i) {
                 const hue = (i*137) % 360; // Approx Golden Angle Method
                 const color = `hsl(${hue}, ${
-                    (type == TYPE.INVALID) ? 30 : 100
+                    (type == TYPE.COMPLEX) ? 30 : 100
                 }%, 85%)`;
                 for (const f of RF[i]) {
                     const el = document.getElementById(`flat_f${f}`);
@@ -225,7 +223,7 @@ const MAIN = {
             for (let i = 0; i < EC.length; ++i) {
                 if (!EC[i]) { continue; }
                 const el = document.getElementById(`flat_e${i}`);
-                el.setAttribute("stroke-width", LENGTH.normal);
+                el.setAttribute("stroke-width", LENGTH.half);
             }
             FOLD.FR = FR.map(l => l ?? -1);
             // if (FOLD.L != undefined) { // draw linearized order
@@ -251,7 +249,7 @@ const MAIN = {
             const [f, g] = EF[i];
             if (FG[f] == FG[g]) { continue; }
             const el = document.getElementById(`flat_e${i}`);
-            el.setAttribute("stroke-width", LENGTH.normal);
+            el.setAttribute("stroke-width", LENGTH.half);
         }
     },
     line_click: (el, lfP, lfL, FS) => {
@@ -857,7 +855,7 @@ const MAIN = {
             return;
         }
         const GI = GB.map(() => 0);
-        const type_states = TYPES.map(() => []);
+        const type_states = TYPE_LABEL.map(() => []);
         NOTE.time("Classifying states");
         NOTE.start_check("state", Number(n));
         for (let i = 0; i < n; ++i) {
@@ -879,16 +877,16 @@ const MAIN = {
         for (let t = 0; t < type_states.length; ++t) {
             const tn = type_states[t].length;
             if (tn == 0) { continue; }
-            NOTE.log(`   - ${tn} ${TYPES[t]}`);
+            NOTE.log(`   - ${tn} ${TYPE_LABEL[t]}`);
         }
         document.getElementById("state_controls").style.display = "inline";
         const comp_select = SVG.clear("component_select");
-        for (let t = 0, first = true; t < TYPES.length; ++t) {
+        for (let t = 0, first = true; t < TYPE_LABEL.length; ++t) {
             const tn = type_states[t].length;
             if (tn == 0) { continue; }
             const el = document.createElement("option");
             el.setAttribute("value", t);
-            el.textContent = `${TYPES[t]} (${tn})`;
+            el.textContent = `${TYPE_LABEL[t]} (${tn})`;
             if (first) {
                 el.setAttribute("selected", true);
                 first = false;
@@ -917,7 +915,6 @@ const MAIN = {
         const comp_select = document.getElementById("component_select");
         const t = +comp_select.value;
         const states = type_states[t];
-        console.log(states);
         let state_idx = 0;
         const n = states.length;
         document.getElementById("state_config").style.display = "inline";
@@ -1750,7 +1747,7 @@ const MAIN = {
         });
         let type;
         if (!valid) {
-            type = TYPE.INVALID;
+            type = TYPE.COMPLEX;
         } else if (RF.length == 1) {
             type = TYPE.PURELAND;
         } else if (!is_sink) {
