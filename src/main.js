@@ -1182,7 +1182,6 @@ const MAIN = {
                 (a == "V") ? "M" : a
             ))),
         };
-        console.log("HERE");
         const cp_data = new Blob([JSON.stringify(export_cp, undefined, 2)], {
             type: "application/json"});
         const cp_link = document.getElementById("cp_anchor");
