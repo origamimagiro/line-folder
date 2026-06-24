@@ -5,6 +5,9 @@ import { N } from "./nath.js";
 
 
 import { M } from "../flatfolder/math.js";
+import { X } from "../flatfolder/conversion.js";
+import { IO } from "../flatfolder/io.js";
+
 
 import { DRAW_LIN } from "./draw_lin.js";
 import { DRAW } from "./draw.js";
@@ -165,9 +168,49 @@ export const STEP = {
         }
         document.getElementById("depth").max = STEP.LIN.S.length;
         DRAW.draw_cp(STEP.FOLD, SVG.clear("cp3"));
-        DRAW.draw_cp(STEP.CATAL, SVG.clear("cp_catalyst"));
+        STEP.CATAL = STEP.update_catalyst(STEP.FOLD);
+        if (STEP.CATAL) {
+            DRAW.draw_cp(STEP.CATAL, SVG.clear("cp_catalyst"));
+        }
     },
 
+
+    update_catalyst: (FOLD) => {
+        if (STEP.CATAL == undefined) {
+            return undefined;
+        }
+        let segs = STEP.CATAL.L;
+        let EA_ = STEP.CATAL.EA;
+        segs = segs.concat(FOLD.EV.map((vs) => M.expand(vs, FOLD.V)));
+        EA_ = EA_.concat(FOLD.EA.map(() => "F"));
+        segs = segs.concat(FOLD.UV.map((vs) => M.expand(vs, FOLD.V)));
+        EA_ = EA_.concat(FOLD.UA.map(() => "F"));
+        const doc = Y.segs_EA_2_CP(segs, EA_, 1.0);
+        const [V_, VV_, EV_, EA, EF, FV_, FE] =
+            IO.doc_type_side_2_V_VV_EV_EA_EF_FV_FE(doc, "cp", true);
+        const [Vf_, Ff] = X.V_FV_EV_EA_2_Vf_Ff(V_, FV_, EV_, EA);
+
+
+        const Vf = FOLD.Vf.map(() => undefined);
+        const W = M.normalize_points(V_);
+        for (const [i, v] of FOLD.V.entries()) {
+            for (const [j, v0] of W.entries()) {
+                if (Math.abs(M.distsq(v0, v)) < M.FLOAT_EPS) {
+                    Vf[i] = Vf_[j];
+                    break;
+                }
+            }
+        }
+
+        return {
+            Vf,
+            L: STEP.CATAL.L,
+            EA: STEP.CATAL.EA,
+            EV: STEP.CATAL.EV,
+            V: STEP.CATAL.V,
+        };
+
+    },
     update_celled_state: (FOLD, CELL, svg_state, T, STATE = undefined) => {
         if (!FOLD) {
             return;
