@@ -810,6 +810,7 @@ const MAIN = {
                 return (out == undefined) ? 0 : out;
             });
         })();
+        const BA0 = MAIN.FO_Ff_BF_2_BA0(FO, Ff, BF);
         const trans_count = {all: 0, reduced: 0};
         const BA = SOLVER.initial_assignment(BA0, BF, BT, BI,
             FC, CF, CC, trans_count);
