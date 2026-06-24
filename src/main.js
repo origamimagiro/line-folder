@@ -9,7 +9,6 @@ import { CON } from "./flatfolder/constraints.js";
 window.onload = () => { MAIN.startup(); };  // entry point
 
 const TYPES = [
-    "INVALID",
     "PURELAND",
     "INSIDE_REVERSE",
     "OUTSIDE_REVERSE",
@@ -17,6 +16,7 @@ const TYPES = [
     "OPEN_SINK",
     "CLOSED_SINK",
     "MIXED_SINK",
+    "INVALID",
 ];
 const TYPE = Object.fromEntries(TYPES.map((t, i) => [t, i]));
 
@@ -758,7 +758,7 @@ const MAIN = {
         // return;
 
         const [FOLD, CELL] = MAIN.V_FV_2_FOLD_CELL(Vy, FVy);
-        const {Ff, EF} = FOLD;
+        const {EV, EF, FE, Ff} = FOLD;
         const {P, PP, CP, FC, CF, SE, SC, SP, BF, BI} = CELL;
         const type = document.getElementById("type_select").value;
         const FO = [];
@@ -857,18 +857,45 @@ const MAIN = {
             return;
         }
         const GI = GB.map(() => 0);
+        const type_states = TYPES.map(() => []);
+        NOTE.time("Classifying states");
+        NOTE.start_check("state", Number(n));
+        for (let i = 0; i < n; ++i) {
+            NOTE.check(i);
+            const edges = X.BF_GB_GA_GI_2_edges(BF, GB, GA, GI);
+            const FO = X.edges_Ff_2_FO(edges, Ff);
+            const [type, RF, FR, EC, V_sink, V_border] = MAIN.classify(
+                V, EV, EF, FE, Ff, FM, FO, FOO);
+            type_states[type].push(GI.map(i => i));
+            for (let i = 0; i < GI.length; ++i) {
+                if (GI[i] != (Gn[i] - 1)) {
+                    GI[i] += 1;
+                    break;
+                }
+                GI[i] = 0;
+            }
+        }
+        NOTE.time("Classified the following states:");
+        for (let t = 0; t < type_states.length; ++t) {
+            const tn = type_states[t].length;
+            if (tn == 0) { continue; }
+            NOTE.log(`   - ${tn} ${TYPES[t]}`);
+        }
         document.getElementById("state_controls").style.display = "inline";
         const comp_select = SVG.clear("component_select");
-        for (const [i, _] of GB.entries()) {
+        for (let t = 0, first = true; t < TYPES.length; ++t) {
+            const tn = type_states[t].length;
+            if (tn == 0) { continue; }
             const el = document.createElement("option");
-            el.setAttribute("value", `${i}`);
-            el.textContent = `${i}`;
-            if (i == 1) {
+            el.setAttribute("value", t);
+            el.textContent = `${TYPES[t]} (${tn})`;
+            if (first) {
                 el.setAttribute("selected", true);
+                first = false;
             }
             comp_select.appendChild(el);
         }
-        const SOLUTION = {GB, GA, GI};
+        const SOLUTION = {GB, GA, GI, type_states};
         FS.pop();
         FS.push([FOLD, CELL]);
         FOLD.lfP = lfP;
@@ -886,29 +913,29 @@ const MAIN = {
     update_component: (FS, SOLUTION) => {
         const [FOLD, CELL] = FS[FS.length - 1];
         const {BF} = CELL;
-        const {GB, GA, GI} = SOLUTION;
+        const {GB, GA, GI, type_states} = SOLUTION;
         const comp_select = document.getElementById("component_select");
-        const c = comp_select.value;
-        document.getElementById("state_config").style.display = "none";
-        const C = [];
-        C.push(c);
-        const n = GA[c].length;
+        const t = +comp_select.value;
+        const states = type_states[t];
+        console.log(states);
+        let state_idx = 0;
+        const n = states.length;
         document.getElementById("state_config").style.display = "inline";
         const state_label = document.getElementById("state_label");
         const state_select = document.getElementById("state_select");
-        state_label.innerHTML = `${n} State${(n == 1) ? "" : "s"}`;
+        state_label.innerHTML = `State`;
         state_select.setAttribute("min", 1);
         state_select.setAttribute("max", n);
-        state_select.value = GI[c] + 1;
+        state_select.value = 1;
         state_select.onchange = () => {
             NOTE.start("Computing new state");
             let j = +state_select.value;
             if (j < 1) { j = 1; }
             if (j > n) { j = n; }
             state_select.value = j;
-            GI[c] = j - 1;
+            state_idx = j - 1;
             NOTE.time("Computing state");
-            const edges = X.BF_GB_GA_GI_2_edges(BF, GB, GA, GI);
+            const edges = X.BF_GB_GA_GI_2_edges(BF, GB, GA, states[state_idx]);
             FOLD.FO = X.edges_Ff_2_FO(edges, FOLD.Ff);
             NOTE.time("Drawing fold");
             const svg = SVG.clear("output");
@@ -1635,15 +1662,15 @@ const MAIN = {
         // // no adjacency is closed.
         // equivilently, we can check that no vertex is "popped",
         // i.e., has folded degree >2 and switches majority assignment
-        if (!valid) {
-            console.log(`fold invalid: ${
-                uniform   ? "" : "!uniform, "   }${
-                separable ? "" : "!separable, " }${
-                joint     ? "" : "!joint, "     }${
-                local     ? "" : "!local, "     }${
-                connected ? "" : "!connected"
-            }`);
-        }
+        // if (!valid) {
+        //     console.log(`fold invalid: ${
+        //         uniform   ? "" : "!uniform, "   }${
+        //         separable ? "" : "!separable, " }${
+        //         joint     ? "" : "!joint, "     }${
+        //         local     ? "" : "!local, "     }${
+        //         connected ? "" : "!connected"
+        //     }`);
+        // }
         const VE = V.map(() => []);
         for (let i = 0; i < EV.length; ++i) {
             const [u, v] = EV[i];
