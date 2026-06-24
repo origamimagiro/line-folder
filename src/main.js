@@ -563,41 +563,59 @@ const MAIN = {
         }
         FOLD.FM = FM;
         FOLD.FOO = FOO;
-        NOTE.time("Computing edge-edge overlaps");
-        const ExE = X.SE_2_ExE(SE);
-        NOTE.count(ExE, "edge-edge adjacencies");
+        const BT = X.BF_BI_EF_SE_CF_SC_2_BT(BF, BI, EF, SE, CF, SC);
+        const BTn = [0, 0, 0];
+        for (const bT of BT) {
+            for (let i = 0; i < 3; ++i) { BTn[i] += bT[i].length; }
+        }
+        for (const [i, d] of [[0, 6], [1, 2], [2, 2]]) { BTn[i] /= d; }
+        NOTE.log(`   - Found ${BTn[0]} taco-taco`);
+        NOTE.log(`   - Found ${BTn[1]} taco-tortilla`);
+        NOTE.log(`   - Found ${BTn[2]} tortilla-tortilla`);
         NOTE.lap();
-        NOTE.time("Computing edge-face overlaps");
-        const ExF = X.SE_CF_SC_2_ExF(SE, CF, SC);
-        NOTE.count(ExF, "edge-face adjacencies");
+        NOTE.time("Computing taco-tortilla implied transitivity");
+        const CC = X.FC_BF_BI_BT_2_CC(FC, BF, BI, BT);
         NOTE.lap();
-        NOTE.time("Computing non-transitivity constraints");
-        const [BT0, BT1, BT2] = X.BF_BI_EF_ExE_ExF_2_BT0_BT1_BT2(
-            BF, BI, EF, ExE, ExF);
-        NOTE.count(BT0, "taco-taco", 6);
-        NOTE.count(BT1, "taco-tortilla", 3);
-        NOTE.count(BT2, "tortilla-tortilla", 2);
-        NOTE.lap();
-        NOTE.time("Computing excluded (possible) transitivity constraints");
-        const BT3x = X.FC_BF_BI_BT0_BT1_2_BT3x(FC, BF, BI, BT0, BT1);
-        NOTE.count(BT3x, "exluded (possible) transitivity", 3);
-        NOTE.lap();
-        NOTE.time("Computing transitivity constraints");
-        const [BT3, nx] = X.EF_SP_SE_CP_FC_CF_BF_BT3x_2_BT3(
-            EF, SP, SE, CP, FC, CF, BF, BT3x);
-        BT3x.length = 0;
-        const ni = NOTE.count(BT3, "independent transitivity", 3);
-        NOTE.log(`   - Found ${nx + ni} total transitivity`);
-        NOTE.lap();
-        const BT = BF.map((F,i) => [BT0[i], BT1[i], BT2[i], BT3[i]]);
         NOTE.time("*** Computing states ***");
-        const BA = MAIN.FO_Ff_BF_2_BA0(FO, Ff, BF);
-        const GB = SOLVER.get_components(BI, BF, BT, BA);
-        const GA = SOLVER.solve(BI, BF, BT, BA, GB, Infinity);
-        const n = (GA == undefined) ? 0 : GA.reduce((s, A) => {
-            return s*BigInt(A.length);
-        }, BigInt(1));
+        const BA0 = MAIN.FO_Ff_BF_2_BA0(FO, Ff, BF);
+        const trans_count = {all: 0, reduced: 0};
+        const BA = SOLVER.initial_assignment(BA0, BF, BT, BI,
+            FC, CF, CC, trans_count);
+        if ((BA.length == 3) && (BA[1].length != undefined)) {
+            const [type, F, E] = BA;
+            const str = `Unable to resolve ${CON.names[type]} on faces [${F}]`;
+            NOTE.log(`   - ${str}`);
+            NOTE.log(`   - Faces participating in conflict: [${E}]`);
+            NOTE.end();
+            FS.pop();
+            MAIN.update_fold(FS);
+            return;
+        }
+        NOTE.annotate(BA.map((_, i) => i).filter(i => BA[i] != 0),
+            "initially assignable variables");
+        NOTE.lap();
+        NOTE.time("Finding unassigned components");
+        const GB = SOLVER.get_components(BI, BF, BT, BA, FC, CF, CC, trans_count);
+        NOTE.count(GB.length - 1, "unassigned components");
+        NOTE.log(`   - Found ${trans_count.reduced/3} reduced transitivity`);
+        NOTE.log(`   - Found ${trans_count.all/3} total transitivity`);
+        NOTE.lap();
+        const GA = SOLVER.solve(BI, BF, BT, BA, GB, FC, CF, CC, Infinity);
+        if (GA.length == undefined) {
+            const gi = GA;
+            const F = new Set();
+            for (const bi of GB[gi]) {
+                for (const f of M.decode(BF[bi])) { F.add(f); }
+            }
+            postMessage({
+                type: "end",
+                arg: ["component_error", [gi, Array.from(F)]]
+            });
+            return;
+        }
+        const Gn = GA.map(A => A.length);
         NOTE.time("Solve completed");
+        const n = Gn.reduce((s, gn) => s*BigInt(gn), BigInt(1));
         NOTE.count(n, "folded states");
         NOTE.lap();
         if (n == 0) {
@@ -839,7 +857,7 @@ const MAIN = {
         NOTE.annotate(CS, "cells_segments");
         NOTE.lap();
         NOTE.time("Making face-cell maps");
-        const [CF, FC] = X.EF_FV_SP_SE_CP_SC_2_CF_FC(EF, FV, SP, SE, CP, SC);
+        const [CF, FC] = X.EF_FV_P_SP_SE_CP_SC_2_CF_FC(EF, FV, P, SP, SE, CP, SC);
         const BF = X.EF_SP_SE_CP_CF_2_BF(EF, SP, SE, CP, CF);
         const BI = new Map();
         for (const [i, F] of BF.entries()) { BI.set(F, i); }
