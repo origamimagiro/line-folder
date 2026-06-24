@@ -128,9 +128,22 @@ export const GUI_STATE = {
             if (document.getElementById("cp3").style.display == "none") {
                 document.getElementById("state0").setAttribute("style", "display: none;");
                 document.getElementById("cp3").setAttribute("style", "display: default;");
+                document.getElementById("cp_catalyst").setAttribute("style", "display: none;");
             } else {
                 document.getElementById("state0").setAttribute("style", "display: default;");
                 document.getElementById("cp3").setAttribute("style", "display: none;");
+                document.getElementById("cp_catalyst").setAttribute("style", "display: none;");
+            }
+        };
+        document.getElementById("catalyst_layers").onclick = () => {
+            if (document.getElementById("cp_catalyst").style.display == "none") {
+                document.getElementById("cp3").setAttribute("style", "display: none;");
+                document.getElementById("state0").setAttribute("style", "display: none;");
+                document.getElementById("cp_catalyst").setAttribute("style", "display: default;");
+            } else {
+                document.getElementById("cp3").setAttribute("style", "display: default;");
+                document.getElementById("state0").setAttribute("style", "display: none;");
+                document.getElementById("cp_catalyst").setAttribute("style", "display: none;");
             }
         };
 

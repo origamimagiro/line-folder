@@ -135,6 +135,7 @@ export const PRJ = {
         STEP.FOLD0 = PRJ.steps[i].fold_cp;
         STEP.CELL0 = PRJ.steps[i].cell_cp;
         STEP.STATE0 = PRJ.steps[i].state_cp;
+        STEP.CATAL = PRJ.steps[i].catalyst;
 
         if (i < PRJ.steps.length - 1) {
             STEP.FOLD1 = PRJ.steps[i + 1].fold_cp;
@@ -200,6 +201,7 @@ export const PRJ = {
         PRJ.steps[i].cell_d = STEP.CELL_D;
         PRJ.steps[i].lin = STEP.LIN;
         PRJ.steps[i].state = STEP.STATE;
+        PRJ.steps[i].catalyst = STEP.CATAL;
         PRJ.steps[i].params = PRJ.parameters();
         PRJ.steps[i].symbols = STEP.SYMBOLS ?? [];
     },

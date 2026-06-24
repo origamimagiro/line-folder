@@ -95,16 +95,18 @@ export const DRAW = {
 
         const { V, FV, EV, EA, UA, UV } = FOLD;
         const V_ = V.map(v => M.add(v, M.div(origin, SVG.SCALE)));
-        const faces = FV.map(F => M.expand(F, V_));
         const lines = EV.map(E => M.expand(E, V_));
 
         const colors = EA.map(a => DRAW.color.segment[a]);
         const widths = EA.map(a => DRAW.width.segment[a]);
         const g1 = SVG.append("g", svg_cp, { id: "flat_f" });
-        SVG.draw_polygons(g1, faces, { fill: "white", id: true });
+        if (FV) {
+            const faces = FV.map(F => M.expand(F, V_));
+            SVG.draw_polygons(g1, faces, { fill: "white", id: true });
+        }
         const g2 = SVG.append("g", svg_cp, { id: "flat_e" });
         SVG.draw_segments(g2, lines, { stroke_width: widths, stroke: colors });
-        if (draw_creases) {
+        if (draw_creases && UA) {
             const creases = UV.map(U => M.expand(U, V_));
             const colors_c = UA.map(a => DRAW.color.segment[a]);
             const widths_c = UA.map(a => DRAW.width.segment[a]);

@@ -52,7 +52,13 @@ export const STEP = {
         const T = STEP.get_transform();
         DRAW.draw_state(SVG.clear("state0"), STEP.FOLD0, STEP.CELL0, STEP.STATE0, T, SEG.clip, STEP.id, []);
         DRAW.draw_group_text(STEP.FOLD0, STEP.CELL0, document.getElementById("state0"), T);
-        DRAW.draw_cp(STEP.FOLD, SVG.clear("cp3"))
+        DRAW.draw_cp(STEP.FOLD, SVG.clear("cp3"));
+        if (STEP.CATAL) {
+            DRAW.draw_cp(STEP.CATAL, SVG.clear("cp_catalyst"));
+        }
+        else {
+            SVG.clear("cp_catalyst");
+        }
         if (STEP.CELL_D) {
             const FOLD = STEP.FOLD_D;
             const CELL = STEP.CELL_D;
@@ -108,7 +114,11 @@ export const STEP = {
     update_dist: () => {
         STEP.CELL_D = undefined;
         const { Vf, FV, EV, EF, FE, Ff, EA, V, VV, Vc, FU, UV, UA, FO } = STEP.FOLD
-        const VD = DIST.FOLD_2_VD(Vf, V)
+        let catalyst = V;
+        if (STEP.CATAL != undefined) {
+            catalyst = STEP.CATAL.Vf;
+        }
+        const VD = DIST.FOLD_2_VD(Vf, catalyst)
         STEP.FOLD_D = { V, Vf: VD, FV, EV, EF, FE, Ff, EA, VV, Vc, FU, UV, UA, FO };
 
         if (STEP.LIN.cycle.length != 0) {
@@ -155,6 +165,7 @@ export const STEP = {
         }
         document.getElementById("depth").max = STEP.LIN.S.length;
         DRAW.draw_cp(STEP.FOLD, SVG.clear("cp3"));
+        DRAW.draw_cp(STEP.CATAL, SVG.clear("cp_catalyst"));
     },
 
     update_celled_state: (FOLD, CELL, svg_state, T, STATE = undefined) => {

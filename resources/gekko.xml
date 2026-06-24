@@ -1,0 +1,32 @@
+<button id="discardgekko" class="discardclose">&#xe040;</button>
+<button id="closegekko" class="discardclose"><i class="bi bi-floppy"></i></button>
+<span>
+    <button id="gekko_undo" class="gryph">&#xe02E;</button>
+    <button id="gekko_redo" class="gryph">&#xe02F;</button>
+</span>
+<span>
+    <span>360°/</span>
+    <input type="number" id="gekko_angle_num" min="4" max="24" value="16" step="1">
+</span>
+<span>
+    <button id="gekko_reset" class="gryph">&#xe041;</button>
+    <button id="gekko_zoomout" class="gryph">&#xe048;</button>
+    <button id="gekko_move" class="gryph">&#xe045;</button>
+    <button id="gekko_zoomin" class="gryph">&#xe049;</button>
+</span>
+
+<div class="gekko_body">
+    <div class="tools">
+        <div class="tool_buttons">
+            <span>
+                <button id ="gekko_delete">&#xe013;</button>
+                <button id="gekko_input_angle">&#xe04C;</button>
+                <button id="gekko_input_mirror">&#xe009;</button>
+                <button id="gekko_input_bisector">&#xe006;</button>
+                <button id="gekko_input_all">A</button>
+                <button id="gekko_delete_all">∀</button>
+            </span>
+        </div>
+    </div>
+    <svg id="gekko_cp" class="paint_edit"></svg>
+</div>
