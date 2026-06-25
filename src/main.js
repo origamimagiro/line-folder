@@ -645,8 +645,6 @@ const MAIN = {
                         }
                         if (good) {
                             for (const e of path) { E_sep[e] = true; }
-                            // console.log(P);
-                            // console.log("FOUND!");
                         }
                     } else {
                         for (const u of FOLD.VV[v]) {
@@ -864,13 +862,19 @@ const MAIN = {
             const FO = X.edges_Ff_2_FO(edges, Ff);
             const [type, RF, FR, EC, V_sink, V_border] = MAIN.classify(
                 V, EV, EF, FE, Ff, FM, FO, FOO);
-            type_states[type].push(GI.map(i => i));
+            type_states[type].push({gi: GI.map(i => i), n: RF.length});
             for (let i = 0; i < GI.length; ++i) {
                 if (GI[i] != (Gn[i] - 1)) {
                     GI[i] += 1;
                     break;
                 }
                 GI[i] = 0;
+            }
+        }
+        for (const states of type_states) {
+            states.sort((a, b) => (a.n - b.n));
+            for (let i = 0; i < states.length; ++i) {
+                states[i] = states[i].gi;
             }
         }
         NOTE.time("Classified the following states:");
@@ -1297,10 +1301,11 @@ const MAIN = {
     },
     FM_H1_H2_2_HC: (FM, H1, H2) => {
         const HC = new Set();
-        for (const [k, o] of H2) {
+        for (const [k, o2] of H2) {
             const [f, g] = M.decode(k);
             if ((!FM[f]) || (!FM[g])) { continue; }
-            if (H1.get(k) == o) { continue; }
+            const o1 = H1.get(k);
+            if (o1 == ((FM[f] == FM[g]) ? -o2 : o2)) { continue; }
             HC.add(k);
         }
         return HC;
@@ -1620,9 +1625,10 @@ const MAIN = {
         }
         return (seen.size == RF.length);
     },
-    classify: (V, EV, EF, FE, Ff, FM, FO, FOO) => {
-        const [H1, EA1] = MAIN.FO_Ff_EF_2_H_EA(FO, Ff, EF);
-        const [H2, EA2] = MAIN.FO_Ff_EF_2_H_EA(FOO, Ff, EF);
+    classify: (V, EV, EF, FE, Ff1, FM, FO1, FO2) => {
+        const Ff2 = Ff1.map((flip, i) => FM[i] ? !flip : flip);
+        const [H1, EA1] = MAIN.FO_Ff_EF_2_H_EA(FO1, Ff1, EF);
+        const [H2, EA2] = MAIN.FO_Ff_EF_2_H_EA(FO2, Ff2, EF);
         const EC = EA1.map((a, i) => (a != EA2[i]));
         const HC = MAIN.FM_H1_H2_2_HC(FM, H1, H2);
         const [FR, RF] = MAIN.EF_FM_HC_2_FR_RF(EF, FM, HC);
@@ -1720,24 +1726,24 @@ const MAIN = {
         let is_outside = true;
         const V_border = VE.map((E, i) => {
             const outer = [];
-            const inner = [];
+            let MV_diff1 = 0;
+            let MV_diff2 = 0;
             for (const e of E) {
                 const a_new = EA1[e];
-                if (a_new == "B") { return 0; } // on paper boundary
+                if (a_new == "M") { ++MV_diff1; }
+                if (a_new == "V") { --MV_diff1; }
                 const a_old = EA2[e];
+                if (a_old == "M") { ++MV_diff2; }
+                if (a_old == "V") { --MV_diff2; }
+                if (a_new == "B") { return 0; } // on paper boundary
                 if (a_new == a_old) { continue; }
                 const [f, g] = EF[e];
-                if (FM[f] == FM[g]) {
-                    inner.push(a_new);
-                } else {
-                    outer.push(a_new);
-                }
+                if (FM[f] != FM[g]) { outer.push(a_new); }
             }
-            if ((inner.length != 1) ||
-                (outer.length != 2) ||
-                (outer[0] != outer[1])
-            ) { return 0; }
-            if (inner[0] != outer[0]) {
+            if ((outer.length == 2) && (outer[0] != outer[1])) {
+                return 0; // pureland-like
+            }
+            if (MV_diff1 == MV_diff2) {
                 is_outside = false;
                 return 1;
             } else {
