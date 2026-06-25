@@ -20,7 +20,8 @@ const TYPE = Object.fromEntries(TYPE_LABEL
 
 const COLOR = {
     normal: "black", select: "blue", active: "red",
-    face: {select: "pink", active: "yellow", top: "#AAA", bottom: "#FFF"},
+    face: {select: "yellow", active: "hsl(0, 100%, 85%)",
+    top: "#AAA", bottom: "#FFF"},
     edge: {
         U: "gray", F: "lightgray", Fcp: "gray",
         B: "black", V: "blue", M: "red"
@@ -61,7 +62,7 @@ const MAIN = {
             })) { svg.setAttribute(k, v); }
         }
         const type_select = document.getElementById("type_select");
-        for (const option of ["all", "pure"]) {
+        for (const option of ["select", "all"]) {
             const el = document.createElement("option");
             el.setAttribute("value", option);
             el.textContent = option;
@@ -211,7 +212,7 @@ const MAIN = {
                 SVG.draw_points(g, points, {r: 6, fill: colors});
             }
             for (let i = 0; i < RF.length; ++i) {
-                const hue = (i*137) % 360; // Approx Golden Angle Method
+                const hue = (i*139) % 360; // Approx Golden Angle Method
                 const color = `hsl(${hue}, ${
                     (type == TYPE.COMPLEX) ? 30 : 100
                 }%, 85%)`;
@@ -255,7 +256,7 @@ const MAIN = {
     line_click: (el, lfP, lfL, FS) => {
         const [FOLD_, CELL_] = FS[FS.length - 1];
         const [FV2, V, Vf, VD] = MAIN.FV_V_Vf_lfL_eps_2_FV2_V2_Vf2_VD2(
-            FOLD_.FV, FOLD_.V, FOLD_.Vf, lfL, FOLD_.eps);
+            FOLD_.FV, FOLD_.V, FOLD_.Vf, lfL, FOLD_.eps/100);
         const FV = [];
         const F_map = FV2.map(() => []);
         for (let fi = 0; fi < FV2.length; ++fi) {
@@ -466,6 +467,7 @@ const MAIN = {
             };
             const group_click = (g, clicked) => {
                 clicked.has(g) ? clicked.delete(g) : clicked.add(g);
+                MAIN.draw_state(svg, FS, LINE);
             };
             for (let i = 0; i < CF.length; ++i) {
                 const el = document.getElementById(`fold_c${i}`);
@@ -763,7 +765,7 @@ const MAIN = {
                 for (const g_ of F_map[g]) {
                     const pair = M.encode_order_pair([f_, g_]);
                     if (BI.has(pair)) { // new overlaps
-                        if (type == "pure") {
+                        if (type == "select") {
                             if (FM[f_] == FM[g_]) {
                                 FO.push([f_, g_, o]);
                             }
