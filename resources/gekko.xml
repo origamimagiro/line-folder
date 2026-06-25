@@ -23,8 +23,8 @@
                 <button id="gekko_input_angle">&#xe04C;</button>
                 <button id="gekko_input_mirror">&#xe009;</button>
                 <button id="gekko_input_bisector">&#xe006;</button>
-                <button id="gekko_input_all">A</button>
-                <button id="gekko_delete_all">∀</button>
+                <button id="gekko_input_all">&#xe05e;</button>
+                <button id="gekko_delete_all">&#xe060;</button>
             </span>
         </div>
     </div>
