@@ -52,6 +52,7 @@ export const GUI_STATE = {
         document.getElementById("duplicate_forward").onclick = PRJ.duplicate;
         document.getElementById("duplicate_backward").onclick = PRJ.duplicate_back;
         document.getElementById("extrapolate").onclick = async () => await PRJ.extrapolate();
+        document.getElementById("sweep").onclick = async () => await PRJ.sweep();
 
 
         document.getElementById("infer_layer_order_forward").onclick = (e) => {

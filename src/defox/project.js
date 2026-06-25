@@ -89,7 +89,7 @@ export const PRJ = {
         if (i + 1 > PRJ.steps.length - 1) { return }
         let FOLD_infer = PRJ.steps[i].fold_cp;
 
-        await LOAD.set(PRJ.steps.length,
+        await LOAD.set(PRJ.steps.length - i - 1,
             async () => {
                 for (let j = i + 1; j < PRJ.steps.length; j++) {
                     const { EV, V, UV, EA, UA } = PRJ.steps[j].fold_cp;
@@ -114,6 +114,47 @@ export const PRJ = {
                     STEP.update_dist();
                     PRJ.record(j - 1);
                     FOLD_infer = FOLD;
+                    await LOAD.report();
+                }
+
+                const j = PRJ.steps.length - 1;
+                PRJ.restore(j);
+                STEP.update_states();
+                STEP.update_dist();
+                PRJ.record(j);
+                STEP.redraw();
+
+            }
+        );
+
+    },
+    sweep: async () => {
+        if (!confirm("All the symbols added in the following steps will be all deleted.")) { return }
+        const i = PRJ.current_idx;
+        if (i + 1 > PRJ.steps.length - 1) { return }
+
+        await LOAD.set(PRJ.steps.length - i - 1,
+            async () => {
+                for (let j = i + 1; j < PRJ.steps.length; j++) {
+                    const { EV, V, EA } = PRJ.steps[j].fold_cp;
+
+                    const segs = EV.map((vs) => {
+                        return M.expand(vs, V);
+                    })
+                    const assigns = EA;
+                    const doc = Y.segs_EA_2_CP(segs, assigns, 1.0);
+                    const FOLD = Y.CP_2_FOLD(doc);
+                    const CELL = Y.FOLD_2_CELL(FOLD);
+
+                    PRJ.steps[j].fold_cp = FOLD;
+                    for (const key of ["P", "CP", "SP", "PP", "SC", "CS", "SE", "FC", "CF"]) {
+                        PRJ.steps[j].cell_cp[key] = CELL[key];
+                    }
+
+                    PRJ.restore(j - 1);
+                    STEP.update_states();
+                    STEP.update_dist();
+                    PRJ.record(j - 1);
                     await LOAD.report();
                 }
 
