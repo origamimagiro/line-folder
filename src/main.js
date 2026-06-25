@@ -1726,6 +1726,7 @@ const MAIN = {
         let is_outside = true;
         const V_border = VE.map((E, i) => {
             const outer = [];
+            const inner = [];
             let MV_diff1 = 0;
             let MV_diff2 = 0;
             for (const e of E) {
@@ -1739,10 +1740,11 @@ const MAIN = {
                 if (a_new == a_old) { continue; }
                 const [f, g] = EF[e];
                 if (FM[f] != FM[g]) { outer.push(a_new); }
+                else                { inner.push(a_new); }
             }
-            if ((outer.length == 2) && (outer[0] != outer[1])) {
-                return 0; // pureland-like
-            }
+            if ((inner.length == 0) ||
+                (outer.length != 2) || (outer[0] != outer[1])
+            ) { return 0; } // not reverse fold
             if (MV_diff1 == MV_diff2) {
                 is_outside = false;
                 return 1;
