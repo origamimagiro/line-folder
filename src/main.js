@@ -75,11 +75,8 @@ export const MAIN = {
             };
             document.getElementById("flip").onchange = () => {
                 NOTE.start("Flipping model");
-                MAIN.draw_state("input", FS);
                 const [FOLD, CELL] = FS[FS.length - 1];
-                if (FOLD.FM != undefined) {
-                    MAIN.draw_state("output", FS);
-                }
+                MAIN.draw_state((FOLD.FM == undefined) ? "input" : "output", FS);
                 NOTE.end();
             };
             MAIN.update_interface(FS);
@@ -117,7 +114,7 @@ export const MAIN = {
         MAIN.draw_state("input", FS);
         NOTE.end();
     },
-    update_cp: (FOLD, LINE) => {
+    draw_cp: (FOLD, LINE) => {
         const {V, FV, EV, EA, EF, FE, Ff, FO, FOO, FM, H} = FOLD;
         FOLD.Vf = X.V_FV_EV_EA_2_Vf_Ff(V, FV, EV, EA)[0];
         if (M.polygon_area2(M.expand(FOLD.FV[0], FOLD.Vf)) < 0) {
@@ -362,21 +359,33 @@ export const MAIN = {
             }
         };
     },
-    update_state: (svg, FS, LINE) => {
+    update_state: (FS, LINE) => {
         const [FOLD, CELL] = FS[FS.length - 1];
-        const {Ff, EF, FO, EA} = FOLD;
-        const {P, PP, CP, CF, SP, SC, SE, Ccolor, Ctop} = CELL;
-        const {FG, clicked_groups} = LINE ?? {
-            FG: Array(Ff.length).fill(0),
+        const {Ccolor, Ctop} = CELL;
+        const {FG, clicked_groups, over_group} = LINE ?? {
+            FG: Array(FOLD.Ff.length).fill(0),
             clicked_groups: new Set(),
+            over_group: undefined,
         };
-        for (let i = 0; i < CP.length; ++i) {
-            const el = document.getElementById(`fold_c${i}`);
+        const cp = document.getElementById("cp");
+        for (let i = 0; i < FG.length; ++i) {
+            const el = cp.getElementById(`flat_f${i}`);
+            const g = FG[i];
+            el.setAttribute("fill",
+                (over_group == g)     ? COLOR.face.select : (
+                clicked_groups.has(g) ? COLOR.face.active
+                                      : COLOR.face.bottom)
+            );
+        }
+        const input = document.getElementById("input");
+        for (let i = 0; i < Ctop.length; ++i) {
+            const el = input.getElementById(`fold_c${i}`);
             const f = Ctop[i];
             const g = FG[f];
-            el.setAttribute("fill", clicked_groups.has(g)
-                ? COLOR.face.select
-                : Ccolor[i]
+            el.setAttribute("fill",
+                (over_group == g)     ? COLOR.face.select : (
+                clicked_groups.has(g) ? COLOR.face.active
+                                      : Ccolor[i])
             );
         }
     },
@@ -394,7 +403,7 @@ export const MAIN = {
         const edges = FO.map(([f1, f2, o]) => {
             return M.encode(((Ff[f2] ? 1 : -1)*o >= 0) ? [f1, f2] : [f2, f1]);
         });
-        [FOLD.L, FOLD.LL] = (() => { // linearize state
+        const [L, LL] = (() => { // linearize state
             const n = Ff.length;
             const Adj = Array(n).fill(0).map(() => []);
             for (const s of edges) {
@@ -442,8 +451,8 @@ export const MAIN = {
             return [L, layers];
         })();
         const slider = document.getElementById("slider");
-        if (FOLD.LL != undefined) {
-            slider.setAttribute("max", FOLD.LL.length);
+        if (LL != undefined) {
+            slider.setAttribute("max", LL.length);
         }
         const CD = X.CF_edges_2_CD(CF, edges); // CF ordered in state
         const Ctop = CD.map(S => flip ? S[0] : S[S.length - 1]);
@@ -454,11 +463,11 @@ export const MAIN = {
         });
         CELL.Ctop = Ctop;
         CELL.Ccolor = Ccolor;
-        MAIN.update_cp(FOLD, LINE);
+        MAIN.draw_cp(FOLD, LINE);
         {   // update linearized state if exists
             const slider = document.getElementById("slider");
             const cycle = document.getElementById("cycle");
-            if (FOLD.LL == undefined) {
+            if (LL == undefined) {
                 slider.style.display = "none";
                 cycle.style.display = "inline";
             } else {
@@ -469,14 +478,14 @@ export const MAIN = {
                 const F_set = new Set();
                 for (let i = 0; i < Ff.length; ++i) { F_set.add(i); }
                 const flip = document.getElementById("flip").checked;
-                if (flip) { FOLD.LL.reverse(); }
-                for (let i = FOLD.LL.length - 1; i >= val; --i) {
-                    const layer = FOLD.LL[i];
+                if (flip) { LL.reverse(); }
+                for (let i = LL.length - 1; i >= val; --i) {
+                    const layer = LL[i];
                     for (const fi of layer) {
                         F_set.delete(fi);
                     }
                 }
-                if (flip) { FOLD.LL.reverse(); }
+                if (flip) { LL.reverse(); }
                 for (let i = 0; i < CD.length; ++i) {
                     const S = CD[i];
                     const D = S.map(a => a);
@@ -565,57 +574,33 @@ export const MAIN = {
             el.onmouseout = () => STYLE.apply(el, STYLE.line_active);
             el.onmouseout();
             el.onclick = () => { MAIN.update_interface(FS); }
-            const group_over = (g, Ctop, FG) => {
-                for (let j = 0; j < Ctop.length; ++j) {
-                    if (g != FG[Ctop[j]]) { continue; }
-                    document.getElementById(`fold_c${j}`)
-                        .setAttribute("fill", COLOR.face.select);
-                }
-                for (let j = 0; j < FG.length; ++j) {
-                    if (g != FG[j]) { continue; }
-                    document.getElementById(`flat_f${j}`)
-                        .setAttribute("fill", COLOR.face.select);
-                }
-            };
-            const group_out = (g1, Ctop, FG, Ccolor, clicked) => {
-                for (let j = 0; j < Ctop.length; ++j) {
-                    const g2 = FG[Ctop[j]];
-                    if (g1 != g2) { continue; }
-                    const el = document.getElementById(`fold_c${j}`);
-                    el.setAttribute("fill",
-                        clicked.has(g2) ? COLOR.face.active : Ccolor[j]);
-                }
-                for (let j = 0; j < FG.length; ++j) {
-                    const g2 = FG[j];
-                    if (g1 != g2) { continue; }
-                    const el = document.getElementById(`flat_f${j}`);
-                    el.setAttribute("fill", clicked.has(g2)
-                        ? COLOR.face.active : COLOR.face.bottom);
-                    // cp always white-side up
-                }
-            };
-            const group_click = (g, clicked) => {
-                clicked.has(g) ? clicked.delete(g) : clicked.add(g);
-                MAIN.draw_state(id, FS, LINE);
-            };
-            for (let i = 0; i < CF.length; ++i) {
-                const el = document.getElementById(`fold_c${i}`);
-                if (el == undefined) { continue; }
-                const g = FG[Ctop[i]];
-                el.onmouseover = () => group_over(g, Ctop, FG);
-                el.onmouseout = () => group_out(
-                    g, Ctop, FG, Ccolor, clicked_groups);
-                el.onclick = () => group_click(g, clicked_groups);
-                el.setAttribute("fill",
-                    clicked_groups.has(g) ? "yellow" : Ccolor[i]);
+            const group_interface = (el, g) => {
+                el.onmouseover = () => {
+                    LINE.over_group = g;
+                    MAIN.update_state(FS, LINE);
+                };
+                el.onmouseout = () => {
+                    LINE.over_group = undefined;
+                    MAIN.update_state(FS, LINE);
+                };
+                el.onclick = () => {
+                    clicked_groups.has(g)
+                        ? clicked_groups.delete(g)
+                        : clicked_groups.add(g);
+                    MAIN.update_state(FS, LINE);
+                };
             }
+            const input = document.getElementById("input");
+            for (let i = 0; i < CF.length; ++i) {
+                const el = input.getElementById(`fold_c${i}`);
+                const g = FG[Ctop[i]];
+                group_interface(el, g);
+            }
+            const cp = document.getElementById("cp");
             for (let i = 0; i < FG.length; ++i) {
-                const el = document.getElementById(`flat_f${i}`);
+                const el = cp.getElementById(`flat_f${i}`);
                 const g = FG[i];
-                el.onmouseover = () => group_over(g, Ctop, FG);
-                el.onmouseout = () => group_out(
-                    g, Ctop, FG, Ccolor, clicked_groups);
-                el.onclick = () => group_click(FG[i], clicked_groups);
+                group_interface(el, g);
             }
         }
     },
@@ -662,7 +647,7 @@ export const MAIN = {
         const [FOLD, _] = MAIN.V_FV_2_FOLD_CELL(V, FV);
         const {Ff, EF} = FOLD;
         FOLD.FO = FO;
-        MAIN.update_cp(FOLD);
+        MAIN.draw_cp(FOLD);
         const [H, EA] = COMP.FO_Ff_EF_2_H_EA(FO, Ff, EF);
         const EF_map = new Map();
         for (const [i, F] of FV.entries()) {
@@ -1033,6 +1018,8 @@ export const MAIN = {
         FS.push([FOLD, CELL]);
         FOLD.lfP = lfP;
         FOLD.lfL = lfL;
+        const replace = document.getElementById("replace");
+        replace.style.display = "inline";
         comp_select.onchange = () => {
             NOTE.start("Changing component");
             MAIN.update_component(FS, SOLUTION);
@@ -1059,7 +1046,7 @@ export const MAIN = {
         state_select.setAttribute("min", 1);
         state_select.setAttribute("max", n);
         state_select.value = 1;
-        state_select.onchange = () => {
+        (state_select.onchange = () => {
             NOTE.start("Computing new state");
             let j = +state_select.value;
             if (j < 1) { j = 1; }
@@ -1069,18 +1056,8 @@ export const MAIN = {
             NOTE.time("Computing state");
             const edges = X.BF_GB_GA_GI_2_edges(BF, GB, GA, states[state_idx]);
             FOLD.FO = X.edges_Ff_2_FO(edges, FOLD.Ff);
-            const flip_el = document.getElementById("flip");
-            (flip_el.onchange = () => {
-                NOTE.start("Redrawing");
-                MAIN.draw_state("output", FS);
-                // update_state
-                // draw_cp
-                // update_cp
-                NOTE.end();
-            })();
-            replace.style.display = "inline";
-        };
-        state_select.onchange();
+            MAIN.draw_state("output", FS);
+        })();
     },
     V_FV_2_FOLD_CELL: (V, FV) => {
         const Ff = FV.map(fV => (M.polygon_area2(fV.map(i => V[i])) < 0));
