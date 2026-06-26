@@ -1,13 +1,13 @@
 import { M } from "./flatfolder/math.js";
 import { NOTE } from "./flatfolder/note.js";
 import { SVG } from "./flatfolder/svg.js";
-import { IO } from "./flatfolder/io.js";
 import { X } from "./flatfolder/conversion.js";
 import { SOLVER } from "./flatfolder/solver.js";
 import { CON } from "./flatfolder/constraints.js";
 
 import { TYPE_LABEL, TYPE, LABEL } from "./label.js";
-import { LINE } from "./lines.js";
+import { AXIOM } from "./axiom.js";
+import { IO } from "./io.js";
 
 window.onload = () => { MAIN.startup(); };  // entry point
 
@@ -34,7 +34,7 @@ const STYLE = {
     line_active: {stroke: COLOR.active, "stroke-width": LENGTH.normal},
 };
 
-const MAIN = {
+export const MAIN = {
     startup: () => {
         CON.build();
         NOTE.clear_log();
@@ -64,7 +64,10 @@ const MAIN = {
         document.getElementById("import").onchange = (e) => {
             if (e.target.files.length > 0) {
                 const file_reader = new FileReader();
-                file_reader.onload = MAIN.process_file;
+                file_reader.onload = (e) => {
+                    const FS = IO.process_file(e);
+                    MAIN.update_fold(FS);
+                }
                 file_reader.readAsText(e.target.files[0]);
             }
         };
@@ -73,53 +76,6 @@ const MAIN = {
         const [FOLD, CELL] = MAIN.V_FV_2_FOLD_CELL(V, FV);
         FOLD.FO = [];
         MAIN.update_fold([[FOLD, CELL]]);
-    },
-    process_file: (e) => {
-        NOTE.clear_log();
-        NOTE.start("*** Starting File Import ***");
-        const doc = e.target.result;
-        const file_name = document.getElementById("import").value;
-        const parts = file_name.split(".");
-        const type = parts[parts.length - 1].toLowerCase();
-        if (type != "fold") {
-            console.log(`Found file with extension ${type}, FOLD format required`);
-            return;
-        }
-        NOTE.time(`Importing from file ${file_name}`);
-        const FS = (() => {
-            const ex = JSON.parse(doc);
-            const properties = [
-                "vertices_coords", "faces_vertices",
-                "faceOrders", "file_frames",
-            ];
-            const [V, FV, FO, frames] = properties.map(property => {
-                const val = ex[property];
-                if (val == undefined) {
-                    NOTE.time(`FOLD file must contain ${property}, but not found`);
-                }
-                return val;
-            });
-            const FS = [];
-            if (frames == undefined) {
-                const [FOLD, CELL] = MAIN.V_FV_2_FOLD_CELL(V, FV);
-                FOLD.FO = FO;
-                FS.push([FOLD, CELL]);
-            } else {
-                for (const frame of frames) {
-                    const [FOLD, CELL] = MAIN.V_FV_2_FOLD_CELL(
-                        frame.vertices_coords,
-                        frame.faces_vertices
-                    );
-                    FOLD.FR = frame["faces_lf:group"];
-                    FOLD.FO = frame.faceOrders;
-                    FOLD.lfL = frame["lf:line"];
-                    FOLD.lfP = frame["lf:points"];
-                    FS.push([FOLD, CELL]);
-                }
-            }
-            return FS;
-        })();
-        MAIN.update_fold(FS);
     },
     update_fold: (FS) => {
         const [FOLD, CELL] = FS[FS.length - 1];
@@ -144,7 +100,7 @@ const MAIN = {
             NOTE.end();
         };
         NOTE.time("Writing output");
-        MAIN.write(FS);
+        IO.write(FS);
         NOTE.end();
     },
     update_cp: (FOLD, LINE) => {
@@ -248,8 +204,76 @@ const MAIN = {
     },
     line_click: (el, lfP, lfL, FS) => {
         const [FOLD_, CELL_] = FS[FS.length - 1];
-        const [FV2, V, Vf, VD] = MAIN.FV_V_Vf_lfL_eps_2_FV2_V2_Vf2_VD2(
-            FOLD_.FV, FOLD_.V, FOLD_.Vf, lfL, FOLD_.eps/100);
+        const [FV2, V, Vf, VD] = (() => {
+            // assumes convex faces (or line divides a face into at most two pieces
+            const {FV, V, Vf} = FOLD_;
+            const eps = FOLD_.eps/100;
+            const [u, d] = lfL;
+            const [a, b] = AXIOM.line_2_coords(lfL);
+            const nV = V.length;
+            const V2 = V.map(v => v);
+            const Vf2 = Vf.map(v => v);
+            const VD = V.map(v => { // signed distance from fold line
+                const dv = M.dot(u, v) - d;
+                return (Math.abs(dv) <= eps) ? 0 : dv;
+            });
+            const EV_map = new Map();
+            const FV2 = FV.map((F) => {
+                const pair = [[], []];
+                const nF = F.length;
+                let [neg, pos] = [false, false];
+                for (const v of F) {
+                    const d = VD[v];
+                    if (d < 0) { neg = true; }
+                    if (d > 0) { pos = true; }
+                }
+                console.assert(neg || pos); // face has zero area?
+                if (neg != pos) {
+                    pair[pos ? 0 : 1] = F.map(i => i);
+                    return pair;
+                }
+                let i = 1;
+                while ((i < nF) && ((VD[F[i - 1]] < 0) == (VD[F[i]] < 0))) {
+                    ++i;
+                }
+                for (let j = 0; j < nF; ++j) {
+                    const i1 = (i + j) % nF;
+                    const v1 = F[i1];
+                    if (Math.abs(VD[v1]) == 0) {
+                        pair[0].push(v1);
+                        pair[1].push(v1);
+                        continue;
+                    }
+                    if (VD[v1] > 0) { pair[0].push(v1); }
+                    if (VD[v1] < 0) { pair[1].push(v1); }
+                    const i2 = (i1 + 1) % nF;
+                    const v2 = F[i2];
+                    if (Math.abs(VD[v2]) == 0) { continue; }
+                    if ((VD[v1] < 0) != (VD[v2] < 0)) {
+                        const s = M.encode_order_pair([v1, v2]);
+                        let xi = EV_map.get(s);
+                        if (xi == undefined) {
+                            const x = M.intersect([V[v1], V[v2]], [a, b], eps);
+                            const xf = M.add(Vf[v1],
+                                M.mul(
+                                    M.sub(Vf[v2], Vf[v1]),
+                                    M.dist(x, V[v1])/M.dist(V[v1], V[v2])
+                                )
+                            );
+                            xi = V2.length;
+                            EV_map.set(s, xi);
+                            V2.push(x);
+                            Vf2.push(xf);
+                            VD.push(0);
+                        }
+                        pair[0].push(xi);
+                        pair[1].push(xi);
+                    }
+                }
+                return pair;
+            });
+            return [FV2, V2, Vf2, VD];
+        })();
         const FV = [];
         const F_map = FV2.map(() => []);
         for (let fi = 0; fi < FV2.length; ++fi) {
@@ -336,7 +360,53 @@ const MAIN = {
         const edges = FO.map(([f1, f2, o]) => {
             return M.encode(((Ff[f2] ? 1 : -1)*o >= 0) ? [f1, f2] : [f2, f1]);
         });
-        const [L, LL] = MAIN.linearize(edges, Ff.length);
+        const [L, LL] = (() => { // linearize state
+            const n = Ff.length;
+            const Adj = Array(n).fill(0).map(() => []);
+            for (const s of edges) {
+                const [f1, f2] = M.decode(s);
+                Adj[f1].push(f2);
+            }
+            const L = [];
+            const seen = Array(n).fill(false);
+            const dfs = (i) => {
+                if (seen[i]) { return; }
+                seen[i] = true;
+                for (const j of Adj[i]) { dfs(j); }
+                L.push(i);
+            };
+            for (let i = 0; i < n; ++i) { dfs(i); }
+            L.reverse();
+            console.assert(L.length == n);
+            const idx_map = Array(n).fill(undefined);
+            for (let i = 0; i < n; ++i) { idx_map[L[i]] = i; }
+            for (const s of edges) {
+                const [f1, f2] = M.decode(s);
+                if (idx_map[f1] <= idx_map[f2]) { continue; }
+                return [undefined, undefined]; // cycle
+            }
+            for (let i = 0; i < n; ++i) { seen[i] = false; }
+            const layers = [];
+            for (let i = 0; i < n; ++i) {
+                const fi = L[i];
+                if (seen[fi]) { continue; }
+                seen[fi] = true;
+                const layer = [fi];
+                const Adj_set = new Set();
+                for (const fj of Adj[fi]) { Adj_set.add(fj); }
+                for (let j = i + 1; j < L.length; ++j) {
+                    const fj = L[j];
+                    if (seen[fj]) { continue; }
+                    if (!Adj_set.has(fj)) {
+                        seen[fj] = true;
+                        layer.push(fj);
+                    }
+                    for (const fk of Adj[fj]) { Adj_set.add(fk); }
+                }
+                layers.push(layer);
+            }
+            return [L, layers];
+        })();
         FOLD.L = L;
         const slider = document.getElementById("slider");
         if (LL != undefined) {
@@ -410,7 +480,41 @@ const MAIN = {
             filter: (i) => SD[i][0] == "B"});
         if (svg.id != "input") { return; } // selection interface only on input
         if (LINE == undefined) {
-            const Pvisible = MAIN.P_PP_Ctop_CP_SC_2_Pvisible(P, PP, Ctop, CP, SC);
+            const Pvisible = (() => {
+                // computes boolean whether each vertex is visible from top
+                const SC_map = new Map();
+                for (const [i, C] of CP.entries()) {
+                    for (const [j, p1] of C.entries()) {
+                        const p2 = C[(j + 1) % C.length];
+                        SC_map.set(M.encode([p2, p1]), i);
+                    }
+                }
+                return PP.map((V, i) => {
+                    const F = [];
+                    const A = V.map(j => M.angle(M.sub(P[j], P[i])));
+                    for (const j of V) {
+                        const c = SC_map.get(M.encode([i, j]));
+                        F.push((c == undefined) ? -1 : Ctop[c]);
+                    }
+                    const F_set = new Map();
+                    for (let i = 0; i < F.length; ++i) {
+                        const f = F[i];
+                        let ang = F_set.get(f);
+                        if (ang == undefined) { ang = 0; }
+                        ang += A[i] - A[(i - 1) % A.length];
+                        F_set.set(f, ang);
+                    }
+                    if (F_set.size > 2) { // degree >= 3
+                        return true;
+                    }
+                    for (const [f, ang] of F_set.entries()) { // bent corner
+                        if (Math.abs(Math.abs(ang) - Math.PI) > 0.001) {
+                            return true;
+                        }
+                    }
+                    return false;
+                });
+            })();
             SVG.draw_points(fold_p, Q, {id: true, filter: (i) => Pvisible[i]});
             const lfP = new Set(); // "lf:points"
             for (let i = 0; i < P.length; ++i) {
@@ -489,7 +593,7 @@ const MAIN = {
         const {P} = CELL;
         if (lfP.has(i) || (lfP.size > 3)) { lfP.clear(); }
         else                              { lfP.add(i); }
-        const L = LINE.get_lines(Array.from(lfP).map(i => P[i]), eps);
+        const L = AXIOM.get_lines(Array.from(lfP).map(i => P[i]), eps);
         for (let i = 0; i < P.length; ++i) {    // rendering
             const el = document.getElementById(`fold_p${i}`);
             if (el == undefined) { continue; }
@@ -500,7 +604,7 @@ const MAIN = {
         if (L.length == 0) { return; }
         const flip = document.getElementById("flip").checked;
         SVG.draw_segments(svg,
-            L.map(l => MAIN.V_P_transform(LINE.line_2_coords(l), P, flip)),
+            L.map(l => MAIN.V_P_transform(AXIOM.line_2_coords(l), P, flip)),
             {id: true}
         );
         for (let j = 0; j < L.length; ++j) {    // interface
@@ -992,224 +1096,5 @@ const MAIN = {
         const FOLD = {V, VV, FV, EV, EF, FE, Ff, eps};
         const CELL = {P, SP, SE, PP, CP, CS, SC, CF, FC, BF, BI};
         return [FOLD, CELL];
-    },
-    linearize: (edges, n) => {
-        const Adj = Array(n).fill(0).map(() => []);
-        for (const s of edges) {
-            const [f1, f2] = M.decode(s);
-            Adj[f1].push(f2);
-        }
-        const L = [];
-        const seen = Array(n).fill(false);
-        const dfs = (i) => {
-            if (seen[i]) { return; }
-            seen[i] = true;
-            for (const j of Adj[i]) {
-                dfs(j);
-            }
-            L.push(i);
-        };
-        for (let i = 0; i < n; ++i) {
-            dfs(i);
-        }
-        L.reverse();
-        console.assert(L.length == n);
-        const idx_map = Array(n).fill(undefined);
-        for (let i = 0; i < n; ++i) {
-            const fi = L[i];
-            idx_map[fi] = i;
-        }
-        for (const s of edges) {
-            const [f1, f2] = M.decode(s);
-            if (idx_map[f1] > idx_map[f2]) {
-                return [undefined, undefined]; // cycle
-            }
-        }
-        for (let i = 0; i < n; ++i) {
-            seen[i] = false;
-        }
-        const layers = [];
-        for (let i = 0; i < n; ++i) {
-            const fi = L[i];
-            if (seen[fi]) { continue; }
-            seen[fi] = true;
-            const layer = [fi];
-            const Adj_set = new Set();
-            for (const fj of Adj[fi]) {
-                Adj_set.add(fj);
-            }
-            for (let j = i + 1; j < L.length; ++j) {
-                const fj = L[j];
-                if (seen[fj]) { continue; }
-                if (!Adj_set.has(fj)) {
-                    seen[fj] = true;
-                    layer.push(fj);
-                }
-                for (const fk of Adj[fj]) {
-                    Adj_set.add(fk);
-                }
-            }
-            layers.push(layer);
-        }
-        return [L, layers];
-    },
-    P_PP_Ctop_CP_SC_2_Pvisible: (P, PP, Ctop, CP, SC) => {
-        // computes boolean whether each vertex is visible from top
-        const SC_map = new Map();
-        for (const [i, C] of CP.entries()) {
-            for (const [j, p1] of C.entries()) {
-                const p2 = C[(j + 1) % C.length];
-                SC_map.set(M.encode([p2, p1]), i);
-            }
-        }
-        return PP.map((V, i) => {
-            const F = [];
-            const A = V.map(j => M.angle(M.sub(P[j], P[i])));
-            for (const j of V) {
-                const c = SC_map.get(M.encode([i, j]));
-                F.push((c == undefined) ? -1 : Ctop[c]);
-            }
-            const F_set = new Map();
-            for (let i = 0; i < F.length; ++i) {
-                const f = F[i];
-                let ang = F_set.get(f);
-                if (ang == undefined) { ang = 0; }
-                ang += A[i] - A[(i - 1) % A.length];
-                F_set.set(f, ang);
-            }
-            if (F_set.size > 2) { // degree >= 3
-                return true;
-            }
-            for (const [f, ang] of F_set.entries()) { // bent corner
-                if (Math.abs(Math.abs(ang) - Math.PI) > 0.001) {
-                    return true;
-                }
-            }
-            return false;
-        });
-    },
-    FV_V_Vf_lfL_eps_2_FV2_V2_Vf2_VD2: (FV, V, Vf, lfL, eps) => {
-        // assumes convex faces (or line divides a face into at most two pieces
-        const [u, d] = lfL;
-        const [a, b] = LINE.line_2_coords(lfL);
-        const nV = V.length;
-        const V2 = V.map(v => v);
-        const Vf2 = Vf.map(v => v);
-        const VD = V.map(v => { // signed distance from fold line
-            const dv = M.dot(u, v) - d;
-            return (Math.abs(dv) <= eps) ? 0 : dv;
-        });
-        const EV_map = new Map();
-        const FV2 = FV.map((F) => {
-            const pair = [[], []];
-            const nF = F.length;
-            let [neg, pos] = [false, false];
-            for (const v of F) {
-                const d = VD[v];
-                if (d < 0) { neg = true; }
-                if (d > 0) { pos = true; }
-            }
-            if (!neg && !pos) {
-                throw new Exception("face has zero area?");
-            }
-            if (neg != pos) {
-                pair[pos ? 0 : 1] = F.map(i => i);
-                return pair;
-            }
-            let i = 1;
-            while ((i < nF) && ((VD[F[i - 1]] < 0) == (VD[F[i]] < 0))) {
-                ++i;
-            }
-            for (let j = 0; j < nF; ++j) {
-                const i1 = (i + j) % nF;
-                const v1 = F[i1];
-                if (Math.abs(VD[v1]) == 0) {
-                    pair[0].push(v1);
-                    pair[1].push(v1);
-                    continue;
-                }
-                if (VD[v1] > 0) { pair[0].push(v1); }
-                if (VD[v1] < 0) { pair[1].push(v1); }
-                const i2 = (i1 + 1) % nF;
-                const v2 = F[i2];
-                if (Math.abs(VD[v2]) == 0) { continue; }
-                if ((VD[v1] < 0) != (VD[v2] < 0)) {
-                    const s = M.encode_order_pair([v1, v2]);
-                    let xi = EV_map.get(s);
-                    if (xi == undefined) {
-                        const x = M.intersect([V[v1], V[v2]], [a, b], eps);
-                        const xf = M.add(Vf[v1],
-                            M.mul(
-                                M.sub(Vf[v2], Vf[v1]),
-                                M.dist(x, V[v1])/M.dist(V[v1], V[v2])
-                            )
-                        );
-                        xi = V2.length;
-                        EV_map.set(s, xi);
-                        V2.push(x);
-                        Vf2.push(xf);
-                        VD.push(0);
-                    }
-                    pair[0].push(xi);
-                    pair[1].push(xi);
-                }
-            }
-            return pair;
-        });
-        return [FV2, V2, Vf2, VD];
-    },
-    write: (FS) => {
-        const frames = [];
-        for (const [FOLD, _] of FS) {
-            const {V, Vf, FV, FO, FR, lfP, lfL} = FOLD;
-            const frame_FOLD = {
-                vertices_coords:  V,
-                faces_vertices:   FV,
-                faceOrders:       FO,
-                "faces_lf:group": FR,
-                "lf:points":      lfP,
-                "lf:line":        lfL,
-            };
-            frames.push(frame_FOLD);
-        }
-        const [FOLD, CELL] = FS[FS.length - 1];
-        const {V, Vf, EV, EA, FV, FO, FR} = FOLD;
-        const path = document.getElementById("import").value.split("\\");
-        const name = path[path.length - 1].split(".")[0];
-        const export_seq = {
-            file_spec: 1.1,
-            file_creator: "line-folder",
-            file_title: `${name}_state`,
-            file_classes: ["singleModel"],
-            vertices_coords:  V,
-            faces_vertices:   FV,
-            faceOrders:       FO,
-            file_frames:  frames,
-        };
-        const seq_data = new Blob([JSON.stringify(export_seq, undefined, 2)], {
-            type: "application/json"});
-        const seq_link = document.getElementById("seq_anchor");
-        seq_link.setAttribute("download", `state.fold`);
-        seq_link.setAttribute("href", window.URL.createObjectURL(seq_data));
-        seq_link.style.textDecoration = "none";
-        const export_cp = {
-            file_spec: 1.1,
-            file_creator: "line-folder",
-            file_title: `${name}_cp`,
-            file_classes: ["singleModel"],
-            vertices_coords:  Vf,
-            faces_vertices:   FV,
-            edges_vertices:   EV,
-            edges_assignment: EA.map(a => ( // as seen from colored side
-                (a == "M") ? "V" : (
-                (a == "V") ? "M" : a
-            ))),
-        };
-        const cp_data = new Blob([JSON.stringify(export_cp, undefined, 2)], {
-            type: "application/json"});
-        const cp_link = document.getElementById("cp_anchor");
-        cp_link.setAttribute("download", `cp.fold`);
-        cp_link.setAttribute("href", window.URL.createObjectURL(cp_data));
-        cp_link.style.textDecoration = "none";
     },
 };

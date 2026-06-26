@@ -11,7 +11,7 @@ import { M } from "./flatfolder/math.js";
  *  7)  6   | PP2SS | line folding points to segments
  */
 
-export const LINE = {
+export const AXIOM = {
     get_lines: (P, eps) => {
         if ((P.length < 2) && (P.length > 4)) { return []; }
         const out = [];
