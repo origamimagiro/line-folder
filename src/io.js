@@ -1,6 +1,8 @@
 import { MAIN } from "./main.js";
 import { NOTE } from "./flatfolder/note.js";
 
+import { COMP } from "./compute.js";
+
 export const IO = {
     process_file: (e) => {
         NOTE.clear_log();
@@ -64,6 +66,9 @@ export const IO = {
             frames.push(frame_FOLD);
         }
         const [FOLD, CELL] = FS[FS.length - 1];
+        if (FOLD.EA == undefined) {
+            [FOLD.H, FOLD.EA] = COMP.FO_Ff_EF_2_H_EA(FOLD.FO, FOLD.Ff, FOLD.EF);
+        }
         const {V, Vf, EV, EA, FV, FO, FR} = FOLD;
         const path = document.getElementById("import").value.split("\\");
         const name = path[path.length - 1].split(".")[0];

@@ -10,7 +10,7 @@ export const TYPE = Object.fromEntries(TYPE_LABEL
     .map(t => t.toUpperCase().replaceAll(" ", "_"))
     .map((t, i) => [t, i]));
 
-export const LABEL = {
+export const COMP = {
     FO_Ff_EF_2_H_EA: (FO, Ff, EF) => {
         const H = new Map();
         for (const [i, j, o] of FO) {
@@ -355,15 +355,15 @@ export const LABEL = {
     },
     classify: (V, EV, EF, FE, Ff1, FM, FO1, FO2) => {
         const Ff2 = Ff1.map((flip, i) => FM[i] ? !flip : flip);
-        const [H1, EA1] = LABEL.FO_Ff_EF_2_H_EA(FO1, Ff1, EF);
-        const [H2, EA2] = LABEL.FO_Ff_EF_2_H_EA(FO2, Ff2, EF);
+        const [H1, EA1] = COMP.FO_Ff_EF_2_H_EA(FO1, Ff1, EF);
+        const [H2, EA2] = COMP.FO_Ff_EF_2_H_EA(FO2, Ff2, EF);
         const EC = EA1.map((a, i) => (a != EA2[i]));
-        const HC = LABEL.FM_H1_H2_2_HC(FM, H1, H2);
-        const [FR, RF] = LABEL.EF_FM_HC_2_FR_RF(EF, FM, HC);
+        const HC = COMP.FM_H1_H2_2_HC(FM, H1, H2);
+        const [FR, RF] = COMP.EF_FM_HC_2_FR_RF(EF, FM, HC);
         // uniform: orders within color don't change
-        const uniform = LABEL.FM_FR_H2_HC_2_uniform(FM, FR, H2, HC);
+        const uniform = COMP.FM_FR_H2_HC_2_uniform(FM, FR, H2, HC);
         // separable: orders between pairs of colors are consistent
-        const separable = LABEL.FR_RF_H1_H2_HC_2_separable(FR, RF, H1, H2, HC);
+        const separable = COMP.FR_RF_H1_H2_HC_2_separable(FR, RF, H1, H2, HC);
         // joint: orders between a color and non-moving region are
         // consistent in end state
         const joint = (() => {
@@ -385,9 +385,9 @@ export const LABEL = {
             return true;
         })();
         // local: every color borders an unmoving face
-        const local = LABEL.FM_FE_EF_RF_2_local(FM, FE, EF, RF);
+        const local = COMP.FM_FE_EF_RF_2_local(FM, FE, EF, RF);
         // connected: colors form a connected component
-        const connected = LABEL.FM_FR_RF_EF_2_connected(FM, FR, RF, EF);
+        const connected = COMP.FM_FR_RF_EF_2_connected(FM, FR, RF, EF);
         const valid = (uniform && separable && joint && local && connected);
         // // OLD: reverse fold if adjacency graph is chain and
         // // no adjacency is closed.
