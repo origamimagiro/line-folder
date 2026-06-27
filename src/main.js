@@ -74,7 +74,9 @@ export const MAIN = {
             };
             document.getElementById("flip").onchange = () => {
                 NOTE.start("Flipping model");
+                if (!FS[FS.length - 1][0].fixed) { FS.pop(); }
                 const [FOLD, CELL] = FS[FS.length - 1];
+                MAIN.draw_cp(FOLD);
                 MAIN.draw_state((FOLD.FM == undefined) ? "input" : "output", FS);
                 NOTE.end();
             };
@@ -685,6 +687,7 @@ export const MAIN = {
         FS.push([FOLD, CELL]);
         FOLD.lfP = lfP;
         FOLD.lfL = lfL;
+        FOLD.fixed = true;
         const replace = document.getElementById("replace");
         replace.style.display = "inline";
         comp_select.onchange = () => {

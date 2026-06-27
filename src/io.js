@@ -32,6 +32,7 @@ export const IO = {
             if (frames == undefined) {
                 const [FOLD, CELL] = COMP.V_FV_2_FOLD_CELL(V, FV);
                 FOLD.FO = FO;
+                FOLD.fixed = true;
                 COMP.augment_FOLD_FO(FOLD);
                 FS.push([FOLD, CELL]);
             } else {
@@ -44,6 +45,7 @@ export const IO = {
                     FOLD.FO = frame.faceOrders;
                     FOLD.lfL = frame["lf:line"];
                     FOLD.lfP = frame["lf:points"];
+                    FOLD.fixed = true;
                     COMP.augment_FOLD_FO(FOLD);
                     FS.push([FOLD, CELL]);
                 }

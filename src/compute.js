@@ -135,7 +135,8 @@ export const COMP = {
         for (const [i, F] of BF.entries()) { BI.set(F, i); }
         NOTE.annotate(BF, "variables_faces");
         NOTE.lap();
-        const FOLD = {V, VV, FV, EV, EF, FE, Ff, eps};
+        const fixed = false;
+        const FOLD = {V, VV, FV, EV, EF, FE, Ff, eps, fixed};
         const CELL = {P, SP, SE, PP, CP, CS, SC, CF, FC, BF, BI};
         return [FOLD, CELL];
     },
