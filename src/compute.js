@@ -3,6 +3,7 @@ import { X } from "./flatfolder/conversion.js";
 import { SVG } from "./flatfolder/svg.js";
 import { NOTE } from "./flatfolder/note.js";
 import { SOLVER } from "./flatfolder/solver.js";
+import { CON } from "./flatfolder/constraints.js";
 
 export const TYPE_LABEL = [
     "Pureland",
@@ -250,9 +251,7 @@ export const COMP = {
             NOTE.log(`   - ${str}`);
             NOTE.log(`   - Faces participating in conflict: [${E}]`);
             NOTE.end();
-            FS.pop();
-            MAIN.update_interface(FS);
-            return;
+            return [undefined, undefined];
         }
         NOTE.annotate(BA.map((_, i) => i).filter(i => BA[i] != 0),
             "initially assignable variables");
@@ -264,8 +263,8 @@ export const COMP = {
         NOTE.log(`   - Found ${trans_count.all/3} total transitivity`);
         NOTE.lap();
         const GA = SOLVER.solve(BI, BF, BT, BA, GB, FC, CF, CC, Infinity);
-        return [GB, GA];
-    }, 
+        return (GA.length == undefined) ? [undefined, undefined] : [GB, GA];
+    },
     FO_Ff_EF_2_H_EA: (FO, Ff, EF) => {
         const H = new Map();
         for (const [i, j, o] of FO) {

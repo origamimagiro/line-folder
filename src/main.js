@@ -52,12 +52,12 @@ export const MAIN = {
                 viewBox: [-b, -b, s + 2*b, s + 2*b].join(" "),
             })) { svg.setAttribute(k, v); }
         }
-        const type_select = document.getElementById("type_select");
+        const mode_select = document.getElementById("mode_select");
         for (const option of ["select", "all"]) {
             const el = document.createElement("option");
             el.setAttribute("value", option);
             el.textContent = option;
-            type_select.appendChild(el);
+            mode_select.appendChild(el);
         }
         const replace_file = (FS) => {
             document.getElementById("back_button").onclick = () => {
@@ -502,12 +502,10 @@ export const MAIN = {
             });
         })();
         const [GB, GA] = COMP.solve(FOLD, CELL, BA0);
-        if (GA.length == undefined) {
-            const gi = GA;
-            const F = new Set();
-            for (const bi of GB[gi]) {
-                for (const f of M.decode(BF[bi])) { F.add(f); }
-            }
+        if (GB == undefined) { // failed to solve
+            FS.pop();
+            MAIN.update_interface(FS);
+            NOTE.end();
             return;
         }
         const Gn = GA.map(A => A.length);
@@ -550,7 +548,7 @@ export const MAIN = {
             NOTE.log(`   - ${tn} ${TYPE_LABEL[t]}`);
         }
         document.getElementById("state_controls").style.display = "inline";
-        const comp_select = SVG.clear("component_select");
+        const type_select = SVG.clear("type_select");
         for (let t = 0, first = true; t < TYPE_LABEL.length; ++t) {
             const tn = type_states[t].length;
             if (tn == 0) { continue; }
@@ -561,29 +559,29 @@ export const MAIN = {
                 el.setAttribute("selected", true);
                 first = false;
             }
-            comp_select.appendChild(el);
+            type_select.appendChild(el);
         }
         const SOLUTION = {GB, GA, GI, type_states};
         FS.pop();
         FS.push([FOLD, CELL]);
         const replace = document.getElementById("replace");
         replace.style.display = "inline";
-        comp_select.onchange = () => {
-            NOTE.start("Changing component");
-            MAIN.update_component(FS, SOLUTION);
+        type_select.onchange = () => {
+            NOTE.start("Changing type");
+            MAIN.update_type(FS, SOLUTION);
             NOTE.end();
         };
-        MAIN.update_component(FS, SOLUTION);
+        MAIN.update_type(FS, SOLUTION);
         NOTE.lap();
         stop = Date.now();
         NOTE.end();
     },
-    update_component: (FS, SOLUTION) => {
+    update_type: (FS, SOLUTION) => {
         const [FOLD, CELL] = FS[FS.length - 1];
         const {BF} = CELL;
         const {GB, GA, GI, type_states} = SOLUTION;
-        const comp_select = document.getElementById("component_select");
-        const t = +comp_select.value;
+        const type_select = document.getElementById("type_select");
+        const t = +type_select.value;
         const states = type_states[t];
         let state_idx = 0;
         const n = states.length;
