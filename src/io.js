@@ -1,4 +1,3 @@
-import { MAIN } from "./main.js";
 import { NOTE } from "./flatfolder/note.js";
 
 import { COMP } from "./compute.js";
@@ -31,12 +30,13 @@ export const IO = {
             });
             const FS = [];
             if (frames == undefined) {
-                const [FOLD, CELL] = MAIN.V_FV_2_FOLD_CELL(V, FV);
+                const [FOLD, CELL] = COMP.V_FV_2_FOLD_CELL(V, FV);
                 FOLD.FO = FO;
+                COMP.augment_FOLD_FO(FOLD);
                 FS.push([FOLD, CELL]);
             } else {
                 for (const frame of frames) {
-                    const [FOLD, CELL] = MAIN.V_FV_2_FOLD_CELL(
+                    const [FOLD, CELL] = COMP.V_FV_2_FOLD_CELL(
                         frame.vertices_coords,
                         frame.faces_vertices
                     );
@@ -44,6 +44,7 @@ export const IO = {
                     FOLD.FO = frame.faceOrders;
                     FOLD.lfL = frame["lf:line"];
                     FOLD.lfP = frame["lf:points"];
+                    COMP.augment_FOLD_FO(FOLD);
                     FS.push([FOLD, CELL]);
                 }
             }

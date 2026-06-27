@@ -6,7 +6,6 @@ import { SOLVER } from "./flatfolder/solver.js";
 import { CON } from "./flatfolder/constraints.js";
 
 import { TYPE_LABEL, TYPE, COMP } from "./compute.js";
-import { AXIOM } from "./axiom.js";
 import { IO } from "./io.js";
 
 window.onload = () => { MAIN.startup(); };  // entry point
@@ -21,17 +20,17 @@ const COLOR = {
     },
 };
 const OPACITY = {normal: 1, hidden: 0.01};
-const LENGTH = {half: 5, normal: 10, select: 20};
+const LENGTH = {normal: 1, half: 5, active: 10, select: 20};
 const STYLE = {
     apply: (el, style) => {
         for (const [k, v] of Object.entries(style)) { el.setAttribute(k, v); }
     },
-    point_hidden: {fill: COLOR.normal, opacity: OPACITY.hidden, r: LENGTH.normal},
+    point_hidden: {fill: COLOR.normal, opacity: OPACITY.hidden, r: LENGTH.active},
     point_select: {fill: COLOR.select, opacity: OPACITY.normal, r: LENGTH.select},
-    point_active: {fill: COLOR.active, opacity: OPACITY.normal, r: LENGTH.normal},
-    line_normal: {stroke: COLOR.normal, "stroke-width": LENGTH.normal},
+    point_active: {fill: COLOR.active, opacity: OPACITY.normal, r: LENGTH.active},
+    line_normal: {stroke: COLOR.normal, "stroke-width": LENGTH.active},
     line_select: {stroke: COLOR.select, "stroke-width": LENGTH.select},
-    line_active: {stroke: COLOR.active, "stroke-width": LENGTH.normal},
+    line_active: {stroke: COLOR.active, "stroke-width": LENGTH.active},
 };
 
 export const MAIN = {
@@ -93,9 +92,9 @@ export const MAIN = {
         };
         const V = [[0, 0], [0, 1], [1, 0], [1, 1]];
         const FV = [[0, 2, 3, 1]];
-        const [FOLD, CELL] = MAIN.V_FV_2_FOLD_CELL(V, FV);
+        const [FOLD, CELL] = COMP.V_FV_2_FOLD_CELL(V, FV);
         FOLD.FO = [];
-        [FOLD.H, FOLD.EA] = COMP.FO_Ff_EF_2_H_EA(FOLD.FO, FOLD.Ff, FOLD.EF);
+        COMP.augment_FOLD_FO(FOLD);
         const FS = [[FOLD, CELL]];
         replace_file(FS);
     },
@@ -111,23 +110,12 @@ export const MAIN = {
         IO.write(FS);
         NOTE.time("Drawing State");
         SVG.clear("output");
+        MAIN.draw_cp(FOLD);
         MAIN.draw_state("input", FS);
         NOTE.end();
     },
     draw_cp: (FOLD, LINE) => {
-        const {V, FV, EV, EA, EF, FE, Ff, FO, FOO, FM, H} = FOLD;
-        FOLD.Vf = X.V_FV_EV_EA_2_Vf_Ff(V, FV, EV, EA)[0];
-        if (M.polygon_area2(M.expand(FOLD.FV[0], FOLD.Vf)) < 0) {
-            FOLD.Vf = FOLD.Vf.map(v => M.refY(v));
-        }
-        const v0 = FOLD.Vf[0];
-        FOLD.Vf = FOLD.Vf.map(p => M.sub(p, v0));
-        const [c1, s1] = FOLD.Vf[1];
-        FOLD.Vf = FOLD.Vf.map(p => M.rotate_cos_sin(p, c1, -s1));
-        FOLD.Vf = FOLD.Vf.map(p => M.rotate_cos_sin(p, 0, 1));
-        FOLD.Vf = MAIN.V_P_transform(FOLD.Vf, FOLD.Vf, false);
-        const Vf = FOLD.Vf;
-        // rendering
+        const {Vf, FV, EV, EA} = FOLD;
         const cp = SVG.clear("cp");
         const faces = FV.map(F => M.expand(F, Vf));
         const lines = EV.map(E => M.expand(E, Vf));
@@ -139,11 +127,68 @@ export const MAIN = {
         const g2 = SVG.append("g", cp, {id: "flat_e"});
         SVG.draw_segments(g2, lines, {stroke: colors, id: true});
         SVG.append("g", cp, {id: "notes"});
+        MAIN.update_cp(FOLD, LINE);
+    },
+    line_click: (el, lfP, lfL, FS) => {
+        const [FOLD_, CELL_] = FS[FS.length - 1];
+        const [FV, V, Vf, VD, F_map] = COMP.split_FOLD_on_line(FOLD_, lfL);
+        const [FOLD, CELL] = COMP.V_FV_2_FOLD_CELL(V, FV); // fully divided
+        const FG = COMP.get_groups(FV, VD);
+        FOLD.Vf = Vf;
+        const {BF, BI, CF} = CELL;
+        FOLD.FO = COMP.map_order(BI, F_map, FOLD_.FO);
+        COMP.augment_FOLD_FO(FOLD);
+        const slider = document.getElementById("slider");
+        slider.value = 0;
+        slider.setAttribute("max", FV.length);
+        const clicked_groups = new Set();
+        const LINE = {el, FG, clicked_groups};
+        FS.push([FOLD, CELL]);
+        MAIN.draw_cp(FOLD, LINE);
+        MAIN.draw_state("input", FS, LINE);
+        const fold_button = document.getElementById("fold_button");
+        fold_button.style.display = "inline";
+        fold_button.onclick = async () => {
+            if (clicked_groups.size == 0) {
+                FS.pop();
+                MAIN.update_interface(FS);
+            } else {
+                SVG.clear("input");
+                document.getElementById("slider").value = 0;
+                MAIN.draw_state("input", FS);
+                document.getElementById("input").appendChild(el);
+                MAIN.make_fold(V, FOLD_.FV, FV, F_map,
+                    FG, FOLD_.FO, clicked_groups, lfP, lfL, FS);
+            }
+        };
+    },
+    update_cp: (FOLD, LINE) => {
+        const {EV, EF, FM} = FOLD;
+        const {FG, clicked_groups, over_group} = LINE ?? {
+            FG: Array(FOLD.Ff.length).fill(0),
+            clicked_groups: new Set(),
+            over_group: undefined,
+        };
+        const cp = document.getElementById("cp");
+        for (let i = 0; i < FG.length; ++i) {
+            const el = cp.getElementById(`flat_f${i}`);
+            const g = FG[i];
+            el.setAttribute("fill",
+                (over_group == g)     ? COLOR.face.select : (
+                clicked_groups.has(g) ? COLOR.face.active
+                                      : COLOR.face.bottom)
+            );
+        }
+        for (let i = 0; i < EV.length; ++i) {
+            if (EF[i].length < 2) { continue; }
+            const [f, g] = EF[i];
+            const el = document.getElementById(`flat_e${i}`);
+            el.setAttribute("stroke-width",
+                (FG[f] == FG[g]) ? LENGTH.normal : LENGTH.half);
+        }
         if (FM != undefined) {
-            const [type, RF, FR, EC, V_sink, V_border] = COMP.classify(
-                V, EV, EF, FE, Ff, FM, FO, FOO);
-            console.log(` ** Fold type: ${TYPE_LABEL[type]}`);
-            const g = document.getElementById("notes");
+            const {Vf, EA, type, RF, FR, EC, V_sink, V_border} = FOLD;
+            const g = SVG.clear("notes");
             const CLS = ["", "white", "black", "gray"];
             if (V_sink.length > 0) {
                 const points = [];
@@ -179,9 +224,13 @@ export const MAIN = {
                     el.setAttribute("fill", color);
                 }
             }
+            const colors = EA.map(a => {
+                return (a == "F") ? COLOR.edge.Fcp : COLOR.edge[a];
+            });
             for (let i = 0; i < EC.length; ++i) {
-                if (!EC[i]) { continue; }
                 const el = document.getElementById(`flat_e${i}`);
+                el.setAttribute("stroke", colors[i]);
+                if (!EC[i]) { continue; }
                 el.setAttribute("stroke-width", LENGTH.half);
             }
             FOLD.FR = FR.map(l => l ?? -1);
@@ -196,190 +245,16 @@ export const MAIN = {
             //     SVG.draw_segments(g, lines, {});
             // }
         }
-        if (LINE == undefined) { return; }
-        const clicked = LINE.clicked_groups;
-        const FG = LINE.FG;
-        for (let i = 0; i < FG.length; ++i) {
-            const el = document.getElementById(`flat_f${i}`);
-            el.setAttribute("fill", clicked.has(FG[i]) ? "yellow" : "white");
-        }
-        for (let i = 0; i < EV.length; ++i) {
-            if (EF[i].length < 2) { continue; }
-            const [f, g] = EF[i];
-            if (FG[f] == FG[g]) { continue; }
-            const el = document.getElementById(`flat_e${i}`);
-            el.setAttribute("stroke-width", LENGTH.half);
-        }
     },
-    line_click: (el, lfP, lfL, FS) => {
-        const [FOLD_, CELL_] = FS[FS.length - 1];
-        const [FV2, V, Vf, VD] = (() => {
-            // assumes convex faces (or line divides a face into at most two pieces
-            const {FV, V, Vf} = FOLD_;
-            const eps = FOLD_.eps/100;
-            const [u, d] = lfL;
-            const [a, b] = AXIOM.line_2_coords(lfL);
-            const nV = V.length;
-            const V2 = V.map(v => v);
-            const Vf2 = Vf.map(v => v);
-            const VD = V.map(v => { // signed distance from fold line
-                const dv = M.dot(u, v) - d;
-                return (Math.abs(dv) <= eps) ? 0 : dv;
-            });
-            const EV_map = new Map();
-            const FV2 = FV.map((F) => {
-                const pair = [[], []];
-                const nF = F.length;
-                let [neg, pos] = [false, false];
-                for (const v of F) {
-                    const d = VD[v];
-                    if (d < 0) { neg = true; }
-                    if (d > 0) { pos = true; }
-                }
-                console.assert(neg || pos); // face has zero area?
-                if (neg != pos) {
-                    pair[pos ? 0 : 1] = F.map(i => i);
-                    return pair;
-                }
-                let i = 1;
-                while ((i < nF) && ((VD[F[i - 1]] < 0) == (VD[F[i]] < 0))) {
-                    ++i;
-                }
-                for (let j = 0; j < nF; ++j) {
-                    const i1 = (i + j) % nF;
-                    const v1 = F[i1];
-                    if (Math.abs(VD[v1]) == 0) {
-                        pair[0].push(v1);
-                        pair[1].push(v1);
-                        continue;
-                    }
-                    if (VD[v1] > 0) { pair[0].push(v1); }
-                    if (VD[v1] < 0) { pair[1].push(v1); }
-                    const i2 = (i1 + 1) % nF;
-                    const v2 = F[i2];
-                    if (Math.abs(VD[v2]) == 0) { continue; }
-                    if ((VD[v1] < 0) != (VD[v2] < 0)) {
-                        const s = M.encode_order_pair([v1, v2]);
-                        let xi = EV_map.get(s);
-                        if (xi == undefined) {
-                            const x = M.intersect([V[v1], V[v2]], [a, b], eps);
-                            const xf = M.add(Vf[v1],
-                                M.mul(
-                                    M.sub(Vf[v2], Vf[v1]),
-                                    M.dist(x, V[v1])/M.dist(V[v1], V[v2])
-                                )
-                            );
-                            xi = V2.length;
-                            EV_map.set(s, xi);
-                            V2.push(x);
-                            Vf2.push(xf);
-                            VD.push(0);
-                        }
-                        pair[0].push(xi);
-                        pair[1].push(xi);
-                    }
-                }
-                return pair;
-            });
-            return [FV2, V2, Vf2, VD];
-        })();
-        const FV = [];
-        const F_map = FV2.map(() => []);
-        for (let fi = 0; fi < FV2.length; ++fi) {
-            for (const f of FV2[fi]) {
-                if (f.length > 0) {
-                    F_map[fi].push(FV.length);
-                    FV.push(f);
-                }
-            }
-        }
-        const FG = (() => {
-            const EF_map = new Map();
-            for (const [i, F] of FV.entries()) {
-                for (const [j, v1] of F.entries()) {
-                    const v2 = F[(j + 1) % F.length];
-                    EF_map.set(M.encode([v2, v1]), i);
-                }
-            }
-            const FG = FV.map(() => undefined);
-            let g = 0;
-            const dfs = (i) => {
-                if (FG[i] != undefined) { return; }
-                FG[i] = g;
-                const F = FV[i];
-                for (const [j, v1] of F.entries()) {
-                    const v2 = F[(j + 1) % F.length];
-                    if ((VD[v1] == 0) && (VD[v2] == 0)) { continue; }
-                    const fi = EF_map.get(M.encode([v1, v2]));
-                    if (fi != undefined) { dfs(fi); }
-                }
-            };
-            for (let i = 0; i < FG.length; ++i) {
-                if (FG[i] != undefined) { continue; }
-                dfs(i);
-                ++g;
-            }
-            return FG;
-        })();
-        const [FOLD, CELL] = MAIN.V_FV_2_FOLD_CELL(V, FV); // fully divided
-        FOLD.Vf = Vf;
-        const {BF, BI, CF} = CELL;
-        const FO = [];
-        for (const [f, g, o] of FOLD_.FO) {
-            for (const f_ of F_map[f]) {
-                for (const g_ of F_map[g]) {
-                    const pair = M.encode_order_pair([f_, g_]);
-                    if (BI.has(pair)) {
-                        FO.push([f_, g_, o]);
-                    }
-                }
-            }
-        }
-        FOLD.FO = FO;
-        const slider = document.getElementById("slider");
-        slider.value = 0;
-        slider.setAttribute("max", FV.length);
-        const clicked_groups = new Set();
-        const LINE = {el, FG, clicked_groups};
-        FS.push([FOLD, CELL]);
-        MAIN.draw_state("input", FS, LINE);
-        const fold_button = document.getElementById("fold_button");
-        fold_button.style.display = "inline";
-        fold_button.onclick = async () => {
-            if (clicked_groups.size == 0) {
-                FS.pop();
-                MAIN.update_interface(FS);
-            } else {
-                SVG.clear("input");
-                document.getElementById("slider").value = 0;
-                MAIN.draw_state("input", FS);
-                document.getElementById("input").appendChild(el);
-                MAIN.make_fold(V, FOLD_.FV, FV, F_map,
-                    FG, FOLD_.FO, clicked_groups, lfP, lfL, FS);
-            }
-        };
-    },
-    update_state: (FS, LINE) => {
-        const [FOLD, CELL] = FS[FS.length - 1];
+    update_state: (svg, FOLD, CELL, LINE) => {
         const {Ccolor, Ctop} = CELL;
         const {FG, clicked_groups, over_group} = LINE ?? {
             FG: Array(FOLD.Ff.length).fill(0),
             clicked_groups: new Set(),
             over_group: undefined,
         };
-        const cp = document.getElementById("cp");
-        for (let i = 0; i < FG.length; ++i) {
-            const el = cp.getElementById(`flat_f${i}`);
-            const g = FG[i];
-            el.setAttribute("fill",
-                (over_group == g)     ? COLOR.face.select : (
-                clicked_groups.has(g) ? COLOR.face.active
-                                      : COLOR.face.bottom)
-            );
-        }
-        const input = document.getElementById("input");
         for (let i = 0; i < Ctop.length; ++i) {
-            const el = input.getElementById(`fold_c${i}`);
+            const el = svg.getElementById(`fold_c${i}`);
             const f = Ctop[i];
             const g = FG[f];
             el.setAttribute("fill",
@@ -390,117 +265,42 @@ export const MAIN = {
         }
     },
     draw_state: (id, FS, LINE) => {
-        const svg = document.getElementById(id);
-        SVG.clear(id);
+        const svg = SVG.clear(id);
         const [FOLD, CELL] = FS[FS.length - 1];
-        const {Ff, EF, FO, EA} = FOLD;
+        const {Ff, EF, FO, EA, H, LL} = FOLD;
         const {P, PP, CP, CF, SP, SC, SE} = CELL;
-        if (EA == undefined) {
-            [FOLD.H, FOLD.EA] = COMP.FO_Ff_EF_2_H_EA(FO, Ff, EF);
-        }
         const flip = document.getElementById("flip").checked;
-        const Q = MAIN.V_P_transform(P, P, flip);
-        const edges = FO.map(([f1, f2, o]) => {
-            return M.encode(((Ff[f2] ? 1 : -1)*o >= 0) ? [f1, f2] : [f2, f1]);
-        });
-        const [L, LL] = (() => { // linearize state
-            const n = Ff.length;
-            const Adj = Array(n).fill(0).map(() => []);
-            for (const s of edges) {
-                const [f1, f2] = M.decode(s);
-                Adj[f1].push(f2);
-            }
-            const L = [];
-            const seen = Array(n).fill(false);
-            const dfs = (i) => {
-                if (seen[i]) { return; }
-                seen[i] = true;
-                for (const j of Adj[i]) { dfs(j); }
-                L.push(i);
-            };
-            for (let i = 0; i < n; ++i) { dfs(i); }
-            L.reverse();
-            console.assert(L.length == n);
-            const idx_map = Array(n).fill(undefined);
-            for (let i = 0; i < n; ++i) { idx_map[L[i]] = i; }
-            for (const s of edges) {
-                const [f1, f2] = M.decode(s);
-                if (idx_map[f1] <= idx_map[f2]) { continue; }
-                return [undefined, undefined]; // cycle
-            }
-            for (let i = 0; i < n; ++i) { seen[i] = false; }
-            const layers = [];
-            for (let i = 0; i < n; ++i) {
-                const fi = L[i];
-                if (seen[fi]) { continue; }
-                seen[fi] = true;
-                const layer = [fi];
-                const Adj_set = new Set();
-                for (const fj of Adj[fi]) { Adj_set.add(fj); }
-                for (let j = i + 1; j < L.length; ++j) {
-                    const fj = L[j];
-                    if (seen[fj]) { continue; }
-                    if (!Adj_set.has(fj)) {
-                        seen[fj] = true;
-                        layer.push(fj);
-                    }
-                    for (const fk of Adj[fj]) { Adj_set.add(fk); }
-                }
-                layers.push(layer);
-            }
-            return [L, layers];
-        })();
+        const Q = COMP.V_P_transform(P, P, flip);
         const slider = document.getElementById("slider");
-        if (LL != undefined) {
-            slider.setAttribute("max", LL.length);
-        }
-        const CD = X.CF_edges_2_CD(CF, edges); // CF ordered in state
+        const CD = X.CF_edges_2_CD(CF, FO.map(([f1, f2, o]) => {
+            return M.encode(((Ff[f2] ? 1 : -1)*o >= 0) ? [f1, f2] : [f2, f1]);
+        })); // CF ordered in state
         const Ctop = CD.map(S => flip ? S[0] : S[S.length - 1]);
         const Ccolor = Ctop.map(d => {
             if (d == undefined) { return undefined; }
             if (Ff[d] != flip)  { return COLOR.face.top; }
             else                { return COLOR.face.bottom; }
         });
+        CELL.Q = Q;
+        CELL.CD = CD;
         CELL.Ctop = Ctop;
         CELL.Ccolor = Ccolor;
-        MAIN.draw_cp(FOLD, LINE);
-        {   // update linearized state if exists
-            const slider = document.getElementById("slider");
-            const cycle = document.getElementById("cycle");
-            if (LL == undefined) {
-                slider.style.display = "none";
-                cycle.style.display = "inline";
-            } else {
-                slider.style.display = "inline";
-                cycle.style.display = "none";
-                slider.oninput = () => { MAIN.draw_state(id, FS, LINE); };
-                const val = +slider.value;
-                const F_set = new Set();
-                for (let i = 0; i < Ff.length; ++i) { F_set.add(i); }
-                const flip = document.getElementById("flip").checked;
-                if (flip) { LL.reverse(); }
-                for (let i = LL.length - 1; i >= val; --i) {
-                    const layer = LL[i];
-                    for (const fi of layer) {
-                        F_set.delete(fi);
-                    }
-                }
-                if (flip) { LL.reverse(); }
-                for (let i = 0; i < CD.length; ++i) {
-                    const S = CD[i];
-                    const D = S.map(a => a);
-                    if (flip) { D.reverse(); }
-                    Ctop[i] = undefined;
-                    while (D.length > 0) {
-                        const fi = D.pop();
-                        if (!F_set.has(fi)) { Ctop[i] = fi; break; }
-                    }
-                }
-                for (let i = 0; i < Ccolor.length; ++i) {
-                    const d = Ctop[i];
-                    Ccolor[i] = (d == undefined) ? undefined : (
-                        (Ff[d] != flip) ? COLOR.face.top : COLOR.face.bottom);
-                }
+        if (LL != undefined) { slider.setAttribute("max", LL.length); }
+        const cycle = document.getElementById("cycle");
+        if (LL == undefined) {
+            slider.style.display = "none";
+            cycle.style.display = "inline";
+        } else {    // update linearized state if exists
+            slider.style.display = "inline";
+            cycle.style.display = "none";
+            slider.oninput = () => MAIN.draw_state(id, FS, LINE);
+            const val = +slider.value;
+            const flip = document.getElementById("flip").checked;
+            COMP.slide_LL(FOLD, CELL, val, flip);
+            for (let i = 0; i < Ccolor.length; ++i) {
+                const d = Ctop[i];
+                Ccolor[i] = (d == undefined) ? undefined : (
+                    (Ff[d] != flip) ? COLOR.face.top : COLOR.face.bottom);
             }
         }
         const SD = X.Ctop_SC_SE_EF_Ff_2_SD(Ctop, SC, SE, EF, Ff);
@@ -508,8 +308,8 @@ export const MAIN = {
         const fold_c = SVG.append("g", svg, {id: "fold_c"});
         const fold_s_crease = SVG.append("g", svg, {id: "fold_s_crease"});
         const fold_s_edge = SVG.append("g", svg, {id: "fold_s_edge"});
-        const Lsvg = SVG.append("g", svg, {id: "lines"});
-        const fold_p = SVG.append("g", svg, {id: "fold_p"});
+        SVG.append("g", svg, {id: "lines"});
+        SVG.append("g", svg, {id: "fold_p"});
         SVG.draw_polygons(fold_c, cells, {
             id: true, fill: Ccolor, stroke: Ccolor});
         const lines = SP.map((ps) => M.expand(ps, Q));
@@ -521,87 +321,103 @@ export const MAIN = {
             filter: (i) => SD[i][0] == "B"});
         if (svg.id != "input") { return; } // selection interface only on input
         if (LINE == undefined) {
-            const Pvisible = (() => {
-                // computes boolean whether each vertex is visible from top
-                const SC_map = new Map();
-                for (const [i, C] of CP.entries()) {
-                    for (const [j, p1] of C.entries()) {
-                        const p2 = C[(j + 1) % C.length];
-                        SC_map.set(M.encode([p2, p1]), i);
-                    }
+            MAIN.draw_point_interface(id, FS);
+        } else {
+            MAIN.draw_line_interface(id, FS, LINE);
+        }
+    },
+    draw_line_interface: (id, FS, LINE) => {
+        const [FOLD, CELL] = FS[FS.length - 1];
+        const {CF, Ctop} = CELL;
+        const {el, FG, clicked_groups} = LINE;
+        const Lsvg = document.getElementById("lines");
+        Lsvg.appendChild(el);
+        (el.onmouseout = () => STYLE.apply(el, STYLE.line_active))();
+        el.onmouseover = () => STYLE.apply(el, STYLE.line_select);
+        el.onclick = () => { MAIN.update_interface(FS); }
+        const input = document.getElementById("input");
+        const group_interface = (el, g) => {
+            el.onmouseover = () => {
+                LINE.over_group = g;
+                MAIN.update_cp(FOLD, LINE);
+                MAIN.update_state(input, FOLD, CELL, LINE);
+            };
+            el.onmouseout = () => {
+                LINE.over_group = undefined;
+                MAIN.update_cp(FOLD, LINE);
+                MAIN.update_state(input, FOLD, CELL, LINE);
+            };
+            el.onclick = () => {
+                clicked_groups.has(g)
+                    ? clicked_groups.delete(g)
+                    : clicked_groups.add(g);
+                MAIN.update_cp(FOLD, LINE);
+                MAIN.update_state(input, FOLD, CELL, LINE);
+            };
+        }
+        for (let i = 0; i < CF.length; ++i) {
+            const el = input.getElementById(`fold_c${i}`);
+            const g = FG[Ctop[i]];
+            group_interface(el, g);
+        }
+        const cp = document.getElementById("cp");
+        for (let i = 0; i < FG.length; ++i) {
+            const el = cp.getElementById(`flat_f${i}`);
+            const g = FG[i];
+            group_interface(el, g);
+        }
+    },
+    draw_point_interface: (id, FS) => {
+        const svg = document.getElementById(id);
+        const [FOLD, CELL] = FS[FS.length - 1];
+        const {Ff, EF, FO, EA, H, LL} = FOLD;
+        const {Q, P, PP, CP, CF, SP, SC, SE, Ctop} = CELL;
+        const Pvisible = (() => {
+            // computes boolean whether each vertex is visible from top
+            const SC_map = new Map();
+            for (const [i, C] of CP.entries()) {
+                for (const [j, p1] of C.entries()) {
+                    const p2 = C[(j + 1) % C.length];
+                    SC_map.set(M.encode([p2, p1]), i);
                 }
-                return PP.map((V, i) => {
-                    const F = [];
-                    const A = V.map(j => M.angle(M.sub(P[j], P[i])));
-                    for (const j of V) {
-                        const c = SC_map.get(M.encode([i, j]));
-                        F.push((c == undefined) ? -1 : Ctop[c]);
-                    }
-                    const F_set = new Map();
-                    for (let i = 0; i < F.length; ++i) {
-                        const f = F[i];
-                        let ang = F_set.get(f);
-                        if (ang == undefined) { ang = 0; }
-                        ang += A[i] - A[(i - 1) % A.length];
-                        F_set.set(f, ang);
-                    }
-                    if (F_set.size > 2) { // degree >= 3
+            }
+            return PP.map((V, i) => {
+                const F = [];
+                const A = V.map(j => M.angle(M.sub(P[j], P[i])));
+                for (const j of V) {
+                    const c = SC_map.get(M.encode([i, j]));
+                    F.push((c == undefined) ? -1 : Ctop[c]);
+                }
+                const F_set = new Map();
+                for (let i = 0; i < F.length; ++i) {
+                    const f = F[i];
+                    let ang = F_set.get(f);
+                    if (ang == undefined) { ang = 0; }
+                    ang += A[i] - A[(i - 1) % A.length];
+                    F_set.set(f, ang);
+                }
+                if (F_set.size > 2) { // degree >= 3
+                    return true;
+                }
+                for (const [f, ang] of F_set.entries()) { // bent corner
+                    if (Math.abs(Math.abs(ang) - Math.PI) > 0.001) {
                         return true;
                     }
-                    for (const [f, ang] of F_set.entries()) { // bent corner
-                        if (Math.abs(Math.abs(ang) - Math.PI) > 0.001) {
-                            return true;
-                        }
-                    }
-                    return false;
-                });
-            })();
-            SVG.draw_points(fold_p, Q, {id: true, filter: (i) => Pvisible[i]});
-            const lfP = new Set(); // "lf:points"
-            for (let i = 0; i < P.length; ++i) {
-                const el = document.getElementById(`fold_p${i}`);
-                if (el == undefined) { continue; }
-                el.onmouseout  = () => STYLE.apply(el, STYLE["point_" +
-                    (lfP.has(i) ? "active" : "hidden")
-                ]);
-                el.onmouseout();
-                el.onmouseover = () => STYLE.apply(el, STYLE.point_select);
-                el.onclick     = () => { MAIN.point_click(i, lfP, FS); }
-            }
-        } else {
-            const {el, FG, clicked_groups} = LINE;
-            Lsvg.appendChild(el);
-            el.onmouseout = () => STYLE.apply(el, STYLE.line_active);
+                }
+                return false;
+            });
+        })();
+        SVG.draw_points(fold_p, Q, {id: true, filter: (i) => Pvisible[i]});
+        const lfP = new Set(); // "lf:points"
+        for (let i = 0; i < P.length; ++i) {
+            const el = document.getElementById(`fold_p${i}`);
+            if (el == undefined) { continue; }
+            el.onmouseout  = () => STYLE.apply(el, STYLE["point_" +
+                (lfP.has(i) ? "active" : "hidden")
+            ]);
             el.onmouseout();
-            el.onclick = () => { MAIN.update_interface(FS); }
-            const group_interface = (el, g) => {
-                el.onmouseover = () => {
-                    LINE.over_group = g;
-                    MAIN.update_state(FS, LINE);
-                };
-                el.onmouseout = () => {
-                    LINE.over_group = undefined;
-                    MAIN.update_state(FS, LINE);
-                };
-                el.onclick = () => {
-                    clicked_groups.has(g)
-                        ? clicked_groups.delete(g)
-                        : clicked_groups.add(g);
-                    MAIN.update_state(FS, LINE);
-                };
-            }
-            const input = document.getElementById("input");
-            for (let i = 0; i < CF.length; ++i) {
-                const el = input.getElementById(`fold_c${i}`);
-                const g = FG[Ctop[i]];
-                group_interface(el, g);
-            }
-            const cp = document.getElementById("cp");
-            for (let i = 0; i < FG.length; ++i) {
-                const el = cp.getElementById(`flat_f${i}`);
-                const g = FG[i];
-                group_interface(el, g);
-            }
+            el.onmouseover = () => STYLE.apply(el, STYLE.point_select);
+            el.onclick     = () => { MAIN.point_click(i, lfP, FS); }
         }
     },
     point_click: (i, lfP, FS) => {
@@ -610,7 +426,7 @@ export const MAIN = {
         const {P} = CELL;
         if (lfP.has(i) || (lfP.size > 3)) { lfP.clear(); }
         else                              { lfP.add(i); }
-        const L = AXIOM.get_lines(Array.from(lfP).map(i => P[i]), eps);
+        const L = COMP.get_lines(Array.from(lfP).map(i => P[i]), eps);
         for (let i = 0; i < P.length; ++i) {    // rendering
             const el = document.getElementById(`fold_p${i}`);
             if (el == undefined) { continue; }
@@ -621,167 +437,14 @@ export const MAIN = {
         if (L.length == 0) { return; }
         const flip = document.getElementById("flip").checked;
         SVG.draw_segments(svg,
-            L.map(l => MAIN.V_P_transform(AXIOM.line_2_coords(l), P, flip)),
+            L.map(l => COMP.V_P_transform(COMP.line_2_coords(l), P, flip)),
             {id: true}
         );
         for (let j = 0; j < L.length; ++j) {    // interface
             const el = svg.children[j];
-            el.onmouseout = () => STYLE.apply(el, STYLE.line_normal);
-            el.onmouseout();
+            (el.onmouseout = () => STYLE.apply(el, STYLE.line_normal))();
             el.onmouseover = () => STYLE.apply(el, STYLE.line_select);
             el.onclick = () => MAIN.line_click(el, Array.from(lfP), L[j], FS);
-        }
-    },
-    V_P_transform: (V, P, flip) => {
-        // rescales V based on normalizing P into a [0, 1] bounding box
-        const [p_min, p_max] = M.bounding_box(P);
-        const [x_diff, y_diff] = M.sub(p_max, p_min);
-        const is_tall = (x_diff < y_diff);
-        const diff = is_tall ? y_diff : x_diff;
-        const m = [0.5, 0.5];
-        const off = M.sub(m, M.div([x_diff, y_diff], 2*diff));
-        return V.map(p => M.add(M.div(M.sub(p, p_min), diff), off))
-                .map(p => (flip ? M.add(M.refX(M.sub(p, m)), m) : p));
-    },
-    draw_separators: (V, FV, FO, FM) => {
-        const [FOLD, _] = MAIN.V_FV_2_FOLD_CELL(V, FV);
-        const {Ff, EF} = FOLD;
-        FOLD.FO = FO;
-        MAIN.draw_cp(FOLD);
-        const [H, EA] = COMP.FO_Ff_EF_2_H_EA(FO, Ff, EF);
-        const EF_map = new Map();
-        for (const [i, F] of FV.entries()) {
-            for (const [j, v1] of F.entries()) {
-                const v2 = F[(j + 1) % F.length];
-                EF_map.set(M.encode([v2, v1]), i);
-            }
-        }
-        const E_map = new Map();
-        for (let i = 0; i < FOLD.EV.length; ++i) {
-            E_map.set(M.encode_order_pair(FOLD.EV[i]), i);
-        }
-        const V_boundary = V.map(() => 0);
-        for (let i = 0; i < FM.length; ++i) {
-            const c = FM[i] ? 1 : 2;
-            for (const v of FV[i]) { V_boundary[v] |= c; }
-        }
-        for (let i = 0; i < V.length; ++i) {
-            for (const j of FOLD.VV[i]) {
-                if (EA[E_map.get(M.encode_order_pair([i, j]))] == "B") {
-                    V_boundary[i] |= 2;
-                }
-            }
-        }
-        SVG.draw_points(document.getElementById("notes"), FOLD.Vf, {
-            filter: (i) => (V_boundary[i] == 3), r: 5, fill: "green", id: true,
-        });
-        const E_sep = EF.map(() => false);
-        for (let i = 0; i < V.length; ++i) {
-            if (V_boundary[i] != 3) { continue; }
-            for (const j of FOLD.VV[i]) {
-                const f_left = EF_map.get(M.encode([i, j]));
-                const f_right = EF_map.get(M.encode([j, i]));
-                if ((f_left == undefined) || (!FM[f_left])) { continue; }
-                if ((f_right == undefined) || (!FM[f_right])) { continue; }
-                // found entering edge
-                const o = H.get(M.encode([f_left, f_right]));
-                if (o == undefined) { continue; }
-                const P = [i];
-                const processing = V.map(() => false);
-                processing[i] = true;
-                const dfs = (v) => {
-                    if (processing[v]) { return; }
-                    console.log("processing: ", v);
-                    P.push(v);
-                    processing[v] = true;
-                    if (V_boundary[v] == 3) {
-                        console.log("checking");
-                        const path = [];
-                        for (let i = 1; i < P.length; ++i) {
-                            const p = P[i - 1];
-                            const q = P[i];
-                            path.push(E_map.get(M.encode_order_pair([p, q])));
-                        }
-                        const block = new Set(path);
-                        const p = P[0];
-                        const q = P[1];
-                        const f_left = EF_map.get(M.encode([p, q]));
-                        const f_right = EF_map.get(M.encode([q, p]));
-                        const F_side = new Map();
-                        F_side.set(f_left, 0);
-                        F_side.set(f_right, 1);
-                        const left = [f_left];
-                        for (let qi = 0; qi < left.length; ++qi) {
-                            const f = left[qi];
-                            const V_ = FV[f];
-                            let a = V_[V_.length - 1];
-                            for (const b of V_) {
-                                const e = E_map.get(M.encode_order_pair([a, b]));
-                                const g = EF_map.get(M.encode([a, b]));
-                                if (!block.has(e) &&
-                                    (g != undefined) &&
-                                    FM[g] &&
-                                    !F_side.has(g)
-                                ) {
-                                    left.push(g);
-                                    F_side.set(g, 0);
-                                }
-                                a = b;
-                            }
-                        }
-                        const right = [f_right];
-                        for (let qi = 0; qi < right.length; ++qi) {
-                            const f = right[qi];
-                            const V = FV[f];
-                            let a = V[V.length - 1];
-                            for (const b of V) {
-                                const e = E_map.get(M.encode_order_pair([a, b]));
-                                const g = EF_map.get(M.encode([a, b]));
-                                if (!block.has(e) &&
-                                    (g != undefined) &&
-                                    FM[g] &&
-                                    !F_side.has(g)
-                                ) {
-                                    right.push(g);
-                                    F_side.set(g, 1);
-                                }
-                                a = b;
-                            }
-                        }
-                        let good = true;
-                        for (const a of left) {
-                            for (const b of right) {
-                                const o_ = H.get(M.encode([a, b]));
-                                if ((o_ != undefined) && (o_ != o)) {
-                                    good = false;
-                                    break;
-                                }
-                            }
-                            if (!good) { break; }
-                        }
-                        if (good) {
-                            for (const e of path) { E_sep[e] = true; }
-                        }
-                    } else {
-                        for (const u of FOLD.VV[v]) {
-                            const f_left = EF_map.get(M.encode([v, u]));
-                            const f_right = EF_map.get(M.encode([u, v]));
-                            if ((f_left == undefined) || (!FM[f_left])) { continue; }
-                            const o2 = H.get(M.encode([f_left, f_right]));
-                            if (o != o2) { continue; }
-                            dfs(u);
-                        }
-                    }
-                    P.pop();
-                    processing[v] = false;
-                };
-                dfs(j);
-                for (let i = 0; i < E_sep.length; ++i) {
-                    if (!E_sep[i]) { continue; }
-                    const el = document.getElementById(`flat_e${i}`);
-                    el.setAttribute("stroke-width", LENGTH.normal);
-                }
-            }
         }
     },
     make_fold: (V, FV_, FV, F_map_old, FG, FO_, clicked_groups, lfP, lfL, FS) => {
@@ -817,7 +480,7 @@ export const MAIN = {
                 FVx.push(FV_[fi]);
                 FM.push(g1);
             } else {
-                throw new Error("malformed FV2");
+                throw new Error("malformed FV");
             }
         }
         const [Vx, FVy] = (() => { // remove unused vertices
@@ -866,10 +529,14 @@ export const MAIN = {
             }
         }
 
-        // MAIN.draw_separators(Vx, FVy, FOO, FM);
+        // const [FOLD_, _] = COMP.V_FV_2_FOLD_CELL(Vx, FVy);
+        // FOLD_.FO = FOO;
+        // FOLD_.FM = FM;
+        // COMP.augment_FOLD_FO(FOLD_);
+        // COMP.draw_separators(FOLD_);
         // return;
 
-        const [FOLD, CELL] = MAIN.V_FV_2_FOLD_CELL(Vy, FVy);
+        const [FOLD, CELL] = COMP.V_FV_2_FOLD_CELL(Vy, FVy);
         const {EV, EF, FE, Ff} = FOLD;
         const {P, PP, CP, FC, CF, SE, SC, SP, BF, BI} = CELL;
         const type = document.getElementById("type_select").value;
@@ -1046,7 +713,7 @@ export const MAIN = {
         state_select.setAttribute("min", 1);
         state_select.setAttribute("max", n);
         state_select.value = 1;
-        (state_select.onchange = () => {
+        const compute_state = () => {
             NOTE.start("Computing new state");
             let j = +state_select.value;
             if (j < 1) { j = 1; }
@@ -1056,48 +723,16 @@ export const MAIN = {
             NOTE.time("Computing state");
             const edges = X.BF_GB_GA_GI_2_edges(BF, GB, GA, states[state_idx]);
             FOLD.FO = X.edges_Ff_2_FO(edges, FOLD.Ff);
+            COMP.augment_FOLD_FO(FOLD);
+            console.log(` ** Fold type: ${TYPE_LABEL[FOLD.type]}`);
+        };
+        compute_state();
+        MAIN.draw_state("output", FS);
+        MAIN.draw_cp(FOLD);
+        state_select.onchange = () => {
+            compute_state();
             MAIN.draw_state("output", FS);
-        })();
-    },
-    V_FV_2_FOLD_CELL: (V, FV) => {
-        const Ff = FV.map(fV => (M.polygon_area2(fV.map(i => V[i])) < 0));
-        const EV_set = new Set();
-        for (const fV of FV) {
-            let i = fV.length - 1;
-            for (let j = 0; j < fV.length; ++j) {
-                EV_set.add(M.encode_order_pair([fV[i], fV[j]]));
-                i = j;
-            }
-        }
-        const EV = Array.from(EV_set).sort().map(k => M.decode(k));
-        const [VV, _] = X.V_EV_2_VV_FV(V, EV);
-        const [EF, FE] = X.EV_FV_2_EF_FE(EV, FV);
-        const L = EV.map(vs => vs.map(i => V[i]));
-        NOTE.time("Constructing points and segments from edges");
-        const [P, SP, SE, eps_i] = X.L_2_V_EV_EL(L);
-        const eps = M.min_line_length(L)/(2**eps_i);
-        NOTE.annotate(P, "points_coords");
-        NOTE.annotate(SP, "segments_points");
-        NOTE.annotate(SE, "segments_edges");
-        NOTE.lap();
-        NOTE.time("Constructing cells from segments");
-        const [PP,CP] = X.V_EV_2_VV_FV(P, SP);
-        NOTE.annotate(CP, "cells_points");
-        NOTE.lap();
-        NOTE.time("Computing segments_cells");
-        const [SC, CS] = X.EV_FV_2_EF_FE(SP, CP);
-        NOTE.annotate(SC, "segments_cells");
-        NOTE.annotate(CS, "cells_segments");
-        NOTE.lap();
-        NOTE.time("Making face-cell maps");
-        const [CF, FC] = X.EF_FV_P_SP_SE_CP_SC_2_CF_FC(EF, FV, P, SP, SE, CP, SC);
-        const BF = X.EF_SP_SE_CP_CF_2_BF(EF, SP, SE, CP, CF);
-        const BI = new Map();
-        for (const [i, F] of BF.entries()) { BI.set(F, i); }
-        NOTE.annotate(BF, "variables_faces");
-        NOTE.lap();
-        const FOLD = {V, VV, FV, EV, EF, FE, Ff, eps};
-        const CELL = {P, SP, SE, PP, CP, CS, SC, CF, FC, BF, BI};
-        return [FOLD, CELL];
+            MAIN.update_cp(FOLD);
+        };
     },
 };
