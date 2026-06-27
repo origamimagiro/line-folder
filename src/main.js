@@ -2,7 +2,6 @@ import { M } from "./flatfolder/math.js";
 import { NOTE } from "./flatfolder/note.js";
 import { SVG } from "./flatfolder/svg.js";
 import { X } from "./flatfolder/conversion.js";
-import { SOLVER } from "./flatfolder/solver.js";
 import { CON } from "./flatfolder/constraints.js";
 
 import { TYPE_LABEL, TYPE, COMP } from "./compute.js";
@@ -450,86 +449,8 @@ export const MAIN = {
         }
     },
     make_fold: (V, FV_, FV, F_map_old, FG, FO_, clicked_groups, lfP, lfL, FS) => {
-        // F_map_old maps uncut faces to their face indices after cutting
-        // FV_ is old uncut faces, while FV is new cut faces
-        // FO_ is old orders for uncut faces
-        // clicked_groups is set mapping group indices to Bool whether clicked
-        const F_map = F_map_old.map(() => []);
-        // map only clicked regions
-        const FVx = []; // new vertices per face
-        const FM = [];  // boolean whether face moves
-        for (let fi = 0; fi < F_map_old.length; ++fi) {
-            const F = F_map_old[fi];
-            if (F.length == 2) { // face was cut
-                const [f1, f2] = F;
-                const g1 = clicked_groups.has(FG[f1]);
-                const g2 = clicked_groups.has(FG[f2]);
-                if (g1 == g2) {  // same group, face was not cut
-                    F_map[fi].push(FVx.length);
-                    FVx.push(FV_[fi]);
-                    FM.push(g1);
-                } else {         // face was cut, so split them
-                    F_map[fi].push(FVx.length);
-                    FVx.push(FV[f1]);
-                    FM.push(g1);
-                    F_map[fi].push(FVx.length);
-                    FVx.push(FV[f2]);
-                    FM.push(g2);
-                }
-            } else if (F.length == 1) { // face was not cut
-                const g1 = clicked_groups.has(FG[F[0]]);
-                F_map[fi].push(FVx.length);
-                FVx.push(FV_[fi]);
-                FM.push(g1);
-            } else {
-                throw new Error("malformed FV");
-            }
-        }
-        const [Vx, FVy] = (() => { // remove unused vertices
-            const V_ = [];
-            const n = V.length;
-            const Vuse = Array(n).fill(false);
-            const V_map = Array(n).fill(undefined);
-            for (const F of FVx) {
-                for (const i of F) {
-                    Vuse[i] = true;
-                }
-            }
-            for (let i = 0; i < n; ++i) {
-                if (Vuse[i]) {
-                    V_map[i] = V_.length;
-                    V_.push(V[i]);
-                }
-            }
-            const FV_ = FVx.map(F => F.map(i => V_map[i]));
-            return [V_, FV_];
-        })();
-        const Vy = Vx.map(() => undefined);
-        const [u, d] = lfL;
-        for (let fi = 0; fi < FVy.length; ++fi) {
-            const F = FVy[fi];
-            if (!FM[fi]) { continue; }
-            for (const vi of F) {
-                if (Vy[vi] != undefined) { continue; }
-                const v = Vx[vi];
-                const d2 = M.dot(v, u) - d;
-                Vy[vi] = M.sub(v, M.mul(u, 2*d2));
-            }
-        }
-        for (let vi = 0; vi < Vy.length; ++vi) {
-            if (Vy[vi] == undefined) {
-                Vy[vi] = Vx[vi];
-            }
-        }
-        const FOO = []; // old order
-        for (const [f, g, o] of FO_) {
-            for (const f_ of F_map[f]) {
-                for (const g_ of F_map[g]) {
-                    const pair = M.encode_order_pair([f_, g_]);
-                    FOO.push([f_, g_, o]);
-                }
-            }
-        }
+        const [Vx, Vy, FVy, FM, FOO, F_map] = COMP.filter_clicked_and_reflect(
+            V, FV_, FV, F_map_old, FG, FO_, clicked_groups, lfL);
 
         // const [FOLD_, _] = COMP.V_FV_2_FOLD_CELL(Vx, FVy);
         // FOLD_.FO = FOO;
@@ -539,6 +460,11 @@ export const MAIN = {
         // return;
 
         const [FOLD, CELL] = COMP.V_FV_2_FOLD_CELL(Vy, FVy);
+        FOLD.FM = FM;
+        FOLD.FOO = FOO;
+        FOLD.lfP = lfP;
+        FOLD.lfL = lfL;
+        FOLD.fixed = true;
         const {EV, EF, FE, Ff} = FOLD;
         const {P, PP, CP, FC, CF, SE, SC, SP, BF, BI} = CELL;
         const type = document.getElementById("type_select").value;
@@ -561,22 +487,6 @@ export const MAIN = {
                 }
             }
         }
-        FOLD.FM = FM;
-        FOLD.FOO = FOO;
-        const BT = X.BF_BI_EF_SE_CF_SC_2_BT(BF, BI, EF, SE, CF, SC);
-        const BTn = [0, 0, 0];
-        for (const bT of BT) {
-            for (let i = 0; i < 3; ++i) { BTn[i] += bT[i].length; }
-        }
-        for (const [i, d] of [[0, 6], [1, 2], [2, 2]]) { BTn[i] /= d; }
-        NOTE.log(`   - Found ${BTn[0]} taco-taco`);
-        NOTE.log(`   - Found ${BTn[1]} taco-tortilla`);
-        NOTE.log(`   - Found ${BTn[2]} tortilla-tortilla`);
-        NOTE.lap();
-        NOTE.time("Computing taco-tortilla implied transitivity");
-        const CC = X.FC_BF_BI_BT_2_CC(FC, BF, BI, BT);
-        NOTE.lap();
-        NOTE.time("*** Computing states ***");
         const BA0 = (() => {
             const BA_map = new Map();
             for (let i = 0; i < FO.length; ++i) {
@@ -591,39 +501,13 @@ export const MAIN = {
                 return (out == undefined) ? 0 : out;
             });
         })();
-        const trans_count = {all: 0, reduced: 0};
-        const BA = SOLVER.initial_assignment(BA0, BF, BT, BI,
-            FC, CF, CC, trans_count);
-        if ((BA.length == 3) && (BA[1].length != undefined)) {
-            const [type, F, E] = BA;
-            const str = `Unable to resolve ${CON.names[type]} on faces [${F}]`;
-            NOTE.log(`   - ${str}`);
-            NOTE.log(`   - Faces participating in conflict: [${E}]`);
-            NOTE.end();
-            FS.pop();
-            MAIN.update_interface(FS);
-            return;
-        }
-        NOTE.annotate(BA.map((_, i) => i).filter(i => BA[i] != 0),
-            "initially assignable variables");
-        NOTE.lap();
-        NOTE.time("Finding unassigned components");
-        const GB = SOLVER.get_components(BI, BF, BT, BA, FC, CF, CC, trans_count);
-        NOTE.count(GB.length - 1, "unassigned components");
-        NOTE.log(`   - Found ${trans_count.reduced/3} reduced transitivity`);
-        NOTE.log(`   - Found ${trans_count.all/3} total transitivity`);
-        NOTE.lap();
-        const GA = SOLVER.solve(BI, BF, BT, BA, GB, FC, CF, CC, Infinity);
+        const [GB, GA] = COMP.solve(FOLD, CELL, BA0);
         if (GA.length == undefined) {
             const gi = GA;
             const F = new Set();
             for (const bi of GB[gi]) {
                 for (const f of M.decode(BF[bi])) { F.add(f); }
             }
-            postMessage({
-                type: "end",
-                arg: ["component_error", [gi, Array.from(F)]]
-            });
             return;
         }
         const Gn = GA.map(A => A.length);
@@ -649,10 +533,7 @@ export const MAIN = {
                 V, EV, EF, FE, Ff, FM, FO, FOO);
             type_states[type].push({gi: GI.map(i => i), n: RF.length});
             for (let i = 0; i < GI.length; ++i) {
-                if (GI[i] != (Gn[i] - 1)) {
-                    GI[i] += 1;
-                    break;
-                }
+                if (GI[i] != (Gn[i] - 1)) { GI[i] += 1; break; }
                 GI[i] = 0;
             }
         }
@@ -685,9 +566,6 @@ export const MAIN = {
         const SOLUTION = {GB, GA, GI, type_states};
         FS.pop();
         FS.push([FOLD, CELL]);
-        FOLD.lfP = lfP;
-        FOLD.lfL = lfL;
-        FOLD.fixed = true;
         const replace = document.getElementById("replace");
         replace.style.display = "inline";
         comp_select.onchange = () => {
