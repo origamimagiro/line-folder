@@ -247,7 +247,7 @@ export const MAIN = {
             for (let i = 0; i < RF.length; ++i) {
                 const hue = (i*139) % 360; // Approx Golden Angle Method
                 const g = FG[RF[i][0]];
-                const color = (mode == "all") ? (
+                const color = ((FOLD.FOO == undefined) && (mode == "all")) ? (
                         (over_group == g) ? COLOR.face.select : COLOR.face.active
                     ) : `hsl(${hue}, ${(FOLD.type == TYPE.COMPLEX) ? 30 : 100
                 }%, 85%)`;
