@@ -11,15 +11,17 @@ window.onload = () => { MAIN.startup(); };  // entry point
 
 const COLOR = {
     normal: "black", select: "blue", active: "red",
-    face: {select: "yellow", active: "hsl(0, 100%, 85%)",
-    top: "#AAA", bottom: "#FFF"},
+    face: {
+        select: "yellow", active: "hsl(0, 100%, 85%)",
+        top: "#AAA", bottom: "#FFF"
+    },
     edge: {
         U: "gray", F: "lightgray", Fcp: "gray",
         B: "black", V: "blue", M: "red"
     },
 };
 const OPACITY = {normal: 1, hidden: 0.01};
-const LENGTH = {normal: 1, half: 5, active: 10, select: 20};
+const LENGTH = {normal: 1, bold: 3, half: 6, active: 12, select: 18};
 const STYLE = {
     apply: (el, style) => {
         for (const [k, v] of Object.entries(style)) { el.setAttribute(k, v); }
@@ -44,7 +46,6 @@ export const MAIN = {
             xmlns: SVG.NS, style: "background: lightgray",
             viewBox: [0, 0, 3*s, s].join(" "),
         })) { main.setAttribute(k, v); }
-
         for (const [i, id] of ["cp", "input", "output"].entries()) {
             const svg = document.getElementById(id);
             for (const [k, v] of Object.entries({
@@ -53,7 +54,7 @@ export const MAIN = {
             })) { svg.setAttribute(k, v); }
         }
         const mode_select = document.getElementById("mode_select");
-        for (const option of ["select", "all"]) {
+        for (const option of ["all", "select"]) {
             const el = document.createElement("option");
             el.setAttribute("value", option);
             el.textContent = option;
@@ -101,6 +102,12 @@ export const MAIN = {
     },
     update_interface: (FS) => {
         const [FOLD, CELL] = FS[FS.length - 1];
+        FOLD.type = undefined;
+        FOLD.RF = undefined;
+        FOLD.FR = undefined;
+        FOLD.V_border = undefined;
+        FOLD.V_sink = undefined;
+        FOLD.EC = undefined;
         const slider = document.getElementById("slider");
         slider.style.display = "none";
         slider.value = 0;
@@ -116,7 +123,7 @@ export const MAIN = {
         NOTE.end();
     },
     draw_cp: (FOLD, LINE) => {
-        const {Vf, FV, EV, EA} = FOLD;
+        const {Vf, FV, EV, EA, EF} = FOLD;
         const cp = SVG.clear("cp");
         const faces = FV.map(F => M.expand(F, Vf));
         const lines = EV.map(E => M.expand(E, Vf));
@@ -143,7 +150,8 @@ export const MAIN = {
         slider.value = 0;
         slider.setAttribute("max", FV.length);
         const clicked_groups = new Set();
-        const LINE = {el, FG, clicked_groups};
+        const clicked_edges = new Map();
+        const LINE = {el, FG, clicked_groups, clicked_edges};
         FS.push([FOLD, CELL]);
         MAIN.draw_cp(FOLD, LINE);
         MAIN.draw_state("input", FS, LINE);
@@ -153,23 +161,38 @@ export const MAIN = {
             if (clicked_groups.size == 0) {
                 FS.pop();
                 MAIN.update_interface(FS);
-            } else {
-                SVG.clear("input");
-                document.getElementById("slider").value = 0;
-                MAIN.draw_state("input", FS);
-                document.getElementById("input").appendChild(el);
-                MAIN.make_fold(V, FOLD_.FV, FV, F_map,
-                    FG, FOLD_.FO, clicked_groups, lfP, lfL, FS);
+                return;
             }
+            const mode = document.getElementById("mode_select").value;
+            let nFM = 0;
+            for (const g of FG) {
+                if (clicked_groups.has(g)) { ++nFM; }
+            }
+            // if ((mode == "all") && (nFM > 10)) {
+            //     console.log("Too many faces?");
+            //     return;
+            // }
+            SVG.clear("input");
+            document.getElementById("slider").value = 0;
+            MAIN.draw_state("input", FS);
+            document.getElementById("input").appendChild(el);
+            el.onmouseover = undefined;
+            el.onmouseout = undefined;
+            el.onclick = undefined;
+            MAIN.make_fold(V, FOLD_.FV, FV, F_map,
+                FG, FOLD_.FO, clicked_groups, lfP, lfL, FS);
         };
     },
     update_cp: (FOLD, LINE) => {
-        const {EV, EF, FM} = FOLD;
-        const {FG, clicked_groups, over_group} = LINE ?? {
-            FG: Array(FOLD.Ff.length).fill(0),
-            clicked_groups: new Set(),
-            over_group: undefined,
-        };
+        const {EV, EA, EF} = FOLD;
+        const {FG, clicked_groups, clicked_edges, over_group} = (
+            LINE ?? {
+                FG: Array(FOLD.Ff.length).fill(0),
+                clicked_groups: new Set(),
+                clicked_edges: new Map(),
+                over_group: undefined,
+            }
+        );
         const cp = document.getElementById("cp");
         for (let i = 0; i < FG.length; ++i) {
             const el = cp.getElementById(`flat_f${i}`);
@@ -187,8 +210,55 @@ export const MAIN = {
             el.setAttribute("stroke-width",
                 (FG[f] == FG[g]) ? LENGTH.normal : LENGTH.half);
         }
-        if (FM != undefined) {
-            const {Vf, EA, type, RF, FR, EC, V_sink, V_border} = FOLD;
+        let FR = FOLD.FR;
+        let RF = FOLD.RF;
+        const mode = document.getElementById("mode_select").value;
+        if (LINE != undefined) {
+            const FM = FG.map(g => clicked_groups.has(g));
+            const HC = new Set();
+            for (const [e, _] of clicked_edges) {
+                HC.add(M.encode_order_pair(EF[e]));
+            }
+            [FR, RF] = COMP.EF_FM_HC_2_FR_RF(EF, FM, HC);
+            FOLD.FR = FR;
+            FOLD.RF = RF;
+            if (mode == "select") {
+                for (let i = 0; i < EF.length; ++i) {
+                    if (!((EA[i] == "M") || (EA[i] == "V"))) { continue; }
+                    const [f, g] = EF[i];
+                    if ((!clicked_groups.has(FG[f])) ||
+                        (!clicked_groups.has(FG[g]))) { continue; }
+                    const el = document.getElementById(`flat_e${i}`);
+                    el.setAttribute("stroke-width",
+                        clicked_edges.has(i) ? LENGTH.half : LENGTH.bold);
+                    el.onmouseover = () => {
+                        el.setAttribute("stroke-width", LENGTH.active);
+                    };
+                    el.onclick = () => {
+                        clicked_edges.has(i)
+                            ? clicked_edges.delete(i)
+                            : clicked_edges.set(i, 0);
+                        MAIN.update_cp(FOLD, LINE);
+                    };
+                }
+            }
+        }
+        if (RF != undefined) {
+            for (let i = 0; i < RF.length; ++i) {
+                const hue = (i*139) % 360; // Approx Golden Angle Method
+                const g = FG[RF[i][0]];
+                const color = (mode == "all") ? (
+                        (over_group == g) ? COLOR.face.select : COLOR.face.active
+                    ) : `hsl(${hue}, ${(FOLD.type == TYPE.COMPLEX) ? 30 : 100
+                }%, 85%)`;
+                for (const f of RF[i]) {
+                    const el = document.getElementById(`flat_f${f}`);
+                    el.setAttribute("fill", color);
+                }
+            }
+        }
+        if (FOLD.FM != undefined) {
+            const {Vf, type, EC, FR, RF, V_border, V_sink} = FOLD;
             const g = SVG.clear("notes");
             const CLS = ["", "white", "black", "gray"];
             if (V_sink.length > 0) {
@@ -215,16 +285,6 @@ export const MAIN = {
                 SVG.draw_points(g, points, {r: 8, fill: "black"});
                 SVG.draw_points(g, points, {r: 6, fill: colors});
             }
-            for (let i = 0; i < RF.length; ++i) {
-                const hue = (i*139) % 360; // Approx Golden Angle Method
-                const color = `hsl(${hue}, ${
-                    (type == TYPE.COMPLEX) ? 30 : 100
-                }%, 85%)`;
-                for (const f of RF[i]) {
-                    const el = document.getElementById(`flat_f${f}`);
-                    el.setAttribute("fill", color);
-                }
-            }
             const colors = EA.map(a => {
                 return (a == "F") ? COLOR.edge.Fcp : COLOR.edge[a];
             });
@@ -234,7 +294,6 @@ export const MAIN = {
                 if (!EC[i]) { continue; }
                 el.setAttribute("stroke-width", LENGTH.half);
             }
-            FOLD.FR = FR.map(l => l ?? -1);
             // if (FOLD.L != undefined) { // draw linearized order
             //     const L = FOLD.L.flat();
             //     const lines = [];
@@ -449,8 +508,10 @@ export const MAIN = {
         }
     },
     make_fold: (V, FV_, FV, F_map_old, FG, FO_, clicked_groups, lfP, lfL, FS) => {
-        const [Vx, Vy, FVy, FM, FOO, F_map] = COMP.filter_clicked_and_reflect(
-            V, FV_, FV, F_map_old, FG, FO_, clicked_groups, lfL);
+        const [FOLD_old, _] = FS.pop();
+        const {FR} = FOLD_old;
+        const [Vx, Vy, FVy, FM, FOO, F_map, FR_] = COMP.filter_clicked_and_reflect(
+            V, FV_, FV, F_map_old, FG, FO_, clicked_groups, lfL, FR);
 
         // const [FOLD_, _] = COMP.V_FV_2_FOLD_CELL(Vx, FVy);
         // FOLD_.FO = FOO;
@@ -468,21 +529,27 @@ export const MAIN = {
         const {EV, EF, FE, Ff} = FOLD;
         const {P, PP, CP, FC, CF, SE, SC, SP, BF, BI} = CELL;
         const type = document.getElementById("type_select").value;
+        const EF_set = new Set();
+        for (const F of EF) {
+            if (F.length != 2) { continue; }
+            EF_set.add(M.encode_order_pair(F));
+        }
         const FO = [];
+        const mode = document.getElementById("mode_select").value;
         for (const [f, g, o] of FO_) {
             for (const f_ of F_map[f]) {
                 for (const g_ of F_map[g]) {
-                    const pair = M.encode_order_pair([f_, g_]);
-                    if (BI.has(pair)) { // new overlaps
-                        if (type == "select") {
-                            if (FM[f_] == FM[g_]) {
-                                FO.push([f_, g_, o]);
-                            }
-                        } else {
-                            if (!FM[f_] && !FM[g_]) {
-                                FO.push([f_, g_, o]);
-                            }
-                        }
+                    const e = M.encode_order_pair([f_, g_]);
+                    if (!BI.has(e)) { continue; } // no longer exist
+                    const mode = document.getElementById("mode_select").value;
+                    if (mode == "all") {
+                        if (!FM[f_] && !FM[g_]) { FO.push([f_, g_, o]); }
+                    } else {
+                        if (FR_[f_] == FR_[g_]) { FO.push([f_, g_, o]); continue; }
+                        if (FR_[f_] == undefined) { continue; }
+                        if (FR_[g_] == undefined) { continue; }
+                        if (!EF_set.has(e)) { continue; }
+                        FO.push([f_, g_, (o < 1) ? 1 : -1]);
                     }
                 }
             }
@@ -503,7 +570,6 @@ export const MAIN = {
         })();
         const [GB, GA] = COMP.solve(FOLD, CELL, BA0);
         if (GB == undefined) { // failed to solve
-            FS.pop();
             MAIN.update_interface(FS);
             NOTE.end();
             return;
@@ -515,7 +581,6 @@ export const MAIN = {
         NOTE.lap();
         if (n == 0) {
             NOTE.end();
-            FS.pop();
             MAIN.update_interface(FS);
             return;
         }
@@ -562,7 +627,6 @@ export const MAIN = {
             type_select.appendChild(el);
         }
         const SOLUTION = {GB, GA, GI, type_states};
-        FS.pop();
         FS.push([FOLD, CELL]);
         const replace = document.getElementById("replace");
         replace.style.display = "inline";
@@ -593,7 +657,6 @@ export const MAIN = {
         state_select.setAttribute("max", n);
         state_select.value = 1;
         const compute_state = () => {
-            NOTE.start("Computing new state");
             let j = +state_select.value;
             if (j < 1) { j = 1; }
             if (j > n) { j = n; }

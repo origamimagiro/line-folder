@@ -142,7 +142,7 @@ export const COMP = {
         const CELL = {P, SP, SE, PP, CP, CS, SC, CF, FC, BF, BI};
         return [FOLD, CELL];
     },
-    filter_clicked_and_reflect: (V, FV_, FV, F_map_, FG, FO, clicked, line) => {
+    filter_clicked_and_reflect: (V, FV_, FV, F_map_, FG, FO, clicked, line, FR_) => {
         // F_map_ maps uncut faces to their face indices after cutting
         // FV_ is old uncut faces, while FV is new cut faces
         // FO is old orders for uncut faces
@@ -151,6 +151,7 @@ export const COMP = {
         // map only clicked regions
         const FVx = []; // new vertices per face
         const FM = [];  // boolean whether face moves
+        const FR = [];
         for (let fi = 0; fi < F_map_.length; ++fi) {
             const F = F_map_[fi];
             if (F.length == 2) { // face was cut
@@ -161,19 +162,23 @@ export const COMP = {
                     F_map[fi].push(FVx.length);
                     FVx.push(FV_[fi]);
                     FM.push(g1);
+                    FR.push(FR_[f1]);
                 } else {         // face was cut, so split them
                     F_map[fi].push(FVx.length);
                     FVx.push(FV[f1]);
                     FM.push(g1);
+                    FR.push(FR_[f1]);
                     F_map[fi].push(FVx.length);
                     FVx.push(FV[f2]);
                     FM.push(g2);
+                    FR.push(FR_[f2]);
                 }
             } else if (F.length == 1) { // face was not cut
                 const g1 = clicked.has(FG[F[0]]);
                 F_map[fi].push(FVx.length);
                 FVx.push(FV_[fi]);
                 FM.push(g1);
+                FR.push(FR_[F[0]]);
             } else {
                 throw new Error("malformed FV");
             }
@@ -223,7 +228,7 @@ export const COMP = {
                 }
             }
         }
-        return [Vx, Vy, FVy, FM, FOO, F_map];
+        return [Vx, Vy, FVy, FM, FOO, F_map, FR];
     },
     solve: (FOLD, CELL, BA0) => {
         const {EF} = FOLD;
@@ -757,6 +762,106 @@ export const COMP = {
         }
         return [type, RF, FR, EC, V_sink, V_border];
     },
+    separators_from_edge: (i, j, FOLD, FM, EF_map, E_map, V_boundary) => {
+        const {Vf, VV, FV, EV, EF, EA, H} = FOLD;
+        const E_sep = new Set();
+        const f_left = EF_map.get(M.encode([i, j]));
+        const f_right = EF_map.get(M.encode([j, i]));
+        if ((f_left == undefined) || (!FM[f_left])) { return E_sep; }
+        if ((f_right == undefined) || (!FM[f_right])) { return E_sep; }
+        // found entering edge
+        let o = H.get(M.encode([f_left, f_right]));
+        if (o == undefined) { return E_sep; }
+        const P = [i];
+        const processing = Vf.map(() => false);
+        processing[i] = true;
+        const dfs = (v) => {
+            if (processing[v]) { return; }
+            P.push(v);
+            processing[v] = true;
+            if (V_boundary[v] == 3) { // bo
+                const path = [];
+                for (let i = 1; i < P.length; ++i) {
+                    const p = P[i - 1];
+                    const q = P[i];
+                    path.push(E_map.get(M.encode_order_pair([p, q])));
+                }
+                const block = new Set(path);
+                const p = P[0];
+                const q = P[1];
+                const f_left = EF_map.get(M.encode([p, q]));
+                const f_right = EF_map.get(M.encode([q, p]));
+                const F_side = new Map();
+                F_side.set(f_left, 0);
+                F_side.set(f_right, 1);
+                const left = [f_left];
+                for (let qi = 0; qi < left.length; ++qi) {
+                    const f = left[qi];
+                    const V_ = FV[f];
+                    let a = V_[V_.length - 1];
+                    for (const b of V_) {
+                        const e = E_map.get(M.encode_order_pair([a, b]));
+                        const g = EF_map.get(M.encode([a, b]));
+                        if (!block.has(e) &&
+                            (g != undefined) &&
+                            FM[g] &&
+                            !F_side.has(g)
+                        ) {
+                            left.push(g);
+                            F_side.set(g, 0);
+                        }
+                        a = b;
+                    }
+                }
+                const right = [f_right];
+                for (let qi = 0; qi < right.length; ++qi) {
+                    const f = right[qi];
+                    const V = FV[f];
+                    let a = V[V.length - 1];
+                    for (const b of V) {
+                        const e = E_map.get(M.encode_order_pair([a, b]));
+                        const g = EF_map.get(M.encode([a, b]));
+                        if (!block.has(e) &&
+                            (g != undefined) &&
+                            FM[g] &&
+                            !F_side.has(g)
+                        ) {
+                            right.push(g);
+                            F_side.set(g, 1);
+                        }
+                        a = b;
+                    }
+                }
+                let good = true;
+                for (const a of left) {
+                    for (const b of right) {
+                        const o_ = H.get(M.encode([a, b]));
+                        if ((o_ != undefined) && (o_ != o)) {
+                            good = false;
+                            break;
+                        }
+                    }
+                    if (!good) { break; }
+                }
+                if (good) {
+                    for (const e of path) { E_sep.add(e); }
+                }
+            } else {
+                for (const u of VV[v]) {
+                    const f_left = EF_map.get(M.encode([v, u]));
+                    const f_right = EF_map.get(M.encode([u, v]));
+                    if ((f_left == undefined) || (!FM[f_left])) { continue; }
+                    const o2 = H.get(M.encode([f_left, f_right]));
+                    if (o != o2) { continue; }
+                    dfs(u);
+                }
+            }
+            P.pop();
+            processing[v] = false;
+        };
+        dfs(j);
+        return E_sep;
+    },
     draw_separators: (FOLD) => {
         const {Vf, VV, FV, EV, EF, FM, EA, H} = FOLD;
         const EF_map = new Map();
@@ -801,11 +906,9 @@ export const COMP = {
                 processing[i] = true;
                 const dfs = (v) => {
                     if (processing[v]) { return; }
-                    console.log("processing: ", v);
                     P.push(v);
                     processing[v] = true;
                     if (V_boundary[v] == 3) {
-                        console.log("checking");
                         const path = [];
                         for (let i = 1; i < P.length; ++i) {
                             const p = P[i - 1];
