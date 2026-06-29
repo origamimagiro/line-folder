@@ -168,7 +168,7 @@ export const MAIN = {
             for (const g of FG) {
                 if (clicked_groups.has(g)) { ++nFM; }
             }
-            // if ((mode == "all") && (nFM > 10)) {
+            // if ((mode == "all") && (nFM > 20)) {
             //     console.log("Too many faces?");
             //     return;
             // }
@@ -315,6 +315,7 @@ export const MAIN = {
         };
         for (let i = 0; i < Ctop.length; ++i) {
             const el = svg.getElementById(`fold_c${i}`);
+            if (el == undefined) { continue; }
             const f = Ctop[i];
             const g = FG[f];
             el.setAttribute("fill",
