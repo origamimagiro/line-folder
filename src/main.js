@@ -54,7 +54,7 @@ export const MAIN = {
             })) { svg.setAttribute(k, v); }
         }
         const mode_select = document.getElementById("mode_select");
-        for (const option of ["all", "select"]) {
+        for (const option of ["select", "all"]) {
             const el = document.createElement("option");
             el.setAttribute("value", option);
             el.textContent = option;

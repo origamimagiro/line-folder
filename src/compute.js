@@ -786,64 +786,64 @@ export const COMP = {
                     const q = P[i];
                     path.push(E_map.get(M.encode_order_pair([p, q])));
                 }
-                const block = new Set(path);
-                const p = P[0];
-                const q = P[1];
-                const f_left = EF_map.get(M.encode([p, q]));
-                const f_right = EF_map.get(M.encode([q, p]));
-                const F_side = new Map();
-                F_side.set(f_left, 0);
-                F_side.set(f_right, 1);
-                const left = [f_left];
-                for (let qi = 0; qi < left.length; ++qi) {
-                    const f = left[qi];
-                    const V_ = FV[f];
-                    let a = V_[V_.length - 1];
-                    for (const b of V_) {
-                        const e = E_map.get(M.encode_order_pair([a, b]));
-                        const g = EF_map.get(M.encode([a, b]));
-                        if (!block.has(e) &&
-                            (g != undefined) &&
-                            FM[g] && (F_side.get(g) != 0)
-                        ) {
-                            left.push(g);
-                            F_side.set(g, 0);
-                        }
-                        a = b;
-                    }
-                }
-                const right = [f_right];
-                for (let qi = 0; qi < right.length; ++qi) {
-                    const f = right[qi];
-                    const V = FV[f];
-                    let a = V[V.length - 1];
-                    for (const b of V) {
-                        const e = E_map.get(M.encode_order_pair([a, b]));
-                        const g = EF_map.get(M.encode([a, b]));
-                        if (!block.has(e) &&
-                            (g != undefined) &&
-                            FM[g] && (F_side.get(g) != 1)
-                        ) {
-                            right.push(g);
-                            F_side.set(g, 1);
-                        }
-                        a = b;
-                    }
-                }
-                const left_set = new Set(left);
                 let good = true;
-                if (!left_set.has(right[0])) {
-                    for (const a of left) {
-                        for (const b of right) {
-                            const o_ = H.get(M.encode([a, b]));
-                            if ((o_ != undefined) && (o_ != o)) {
-                                good = false;
-                                break;
-                            }
-                        }
-                        if (!good) { break; }
-                    }
-                }
+                // const block = new Set(path);
+                // const p = P[0];
+                // const q = P[1];
+                // const f_left = EF_map.get(M.encode([p, q]));
+                // const f_right = EF_map.get(M.encode([q, p]));
+                // const F_side = new Map();
+                // F_side.set(f_left, 0);
+                // F_side.set(f_right, 1);
+                // const left = [f_left];
+                // for (let qi = 0; qi < left.length; ++qi) {
+                //     const f = left[qi];
+                //     const V_ = FV[f];
+                //     let a = V_[V_.length - 1];
+                //     for (const b of V_) {
+                //         const e = E_map.get(M.encode_order_pair([a, b]));
+                //         const g = EF_map.get(M.encode([a, b]));
+                //         if (!block.has(e) &&
+                //             (g != undefined) &&
+                //             FM[g] && (F_side.get(g) != 0)
+                //         ) {
+                //             left.push(g);
+                //             F_side.set(g, 0);
+                //         }
+                //         a = b;
+                //     }
+                // }
+                // const right = [f_right];
+                // for (let qi = 0; qi < right.length; ++qi) {
+                //     const f = right[qi];
+                //     const V = FV[f];
+                //     let a = V[V.length - 1];
+                //     for (const b of V) {
+                //         const e = E_map.get(M.encode_order_pair([a, b]));
+                //         const g = EF_map.get(M.encode([a, b]));
+                //         if (!block.has(e) &&
+                //             (g != undefined) &&
+                //             FM[g] && (F_side.get(g) != 1)
+                //         ) {
+                //             right.push(g);
+                //             F_side.set(g, 1);
+                //         }
+                //         a = b;
+                //     }
+                // }
+                // const left_set = new Set(left);
+                // if (!left_set.has(right[0])) {
+                //     for (const a of left) {
+                //         for (const b of right) {
+                //             const o_ = H.get(M.encode([a, b]));
+                //             if ((o_ != undefined) && (o_ != o)) {
+                //                 good = false;
+                //                 break;
+                //             }
+                //         }
+                //         if (!good) { break; }
+                //     }
+                // }
                 if (good) {
                     for (const e1 of path) {
                         for (const e2 of path) {
