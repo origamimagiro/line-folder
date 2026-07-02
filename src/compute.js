@@ -1097,7 +1097,7 @@ export const COMP = {
     split_FOLD_on_line: (FOLD, line) => {
         // assumes convex faces (or line divides a face into at most two pieces
         const {FV, V, Vf} = FOLD;
-        const eps = FOLD.eps/100;
+        const eps = FOLD.eps;
         const [u, d] = line;
         const [a, b] = COMP.line_2_coords(line);
         const nV = V.length;
