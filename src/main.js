@@ -223,24 +223,53 @@ export const MAIN = {
             FOLD.FR = FR;
             FOLD.RF = RF;
             if (mode == "select") {
+                const [V_boundary, E_sep] = COMP.find_separators(FOLD, FM);
+                const reset_edges = () => {
+                    for (let e = 0; e < EF.length; ++e) {
+                        if (!((EA[e] == "M") || (EA[e] == "V"))) { continue; }
+                        const [f, g] = EF[e];
+                        if ((!clicked_groups.has(FG[f])) ||
+                            (!clicked_groups.has(FG[g]))) { continue; }
+                        document.getElementById(`flat_e${e}`)
+                            .setAttribute("stroke-width",
+                            clicked_edges.has(e) ? LENGTH.half : (
+                                (E_sep[e].size > 0) ? LENGTH.bold : LENGTH.normal));
+                    }
+                };
                 for (let i = 0; i < EF.length; ++i) {
                     if (!((EA[i] == "M") || (EA[i] == "V"))) { continue; }
                     const [f, g] = EF[i];
                     if ((!clicked_groups.has(FG[f])) ||
                         (!clicked_groups.has(FG[g]))) { continue; }
                     const el = document.getElementById(`flat_e${i}`);
-                    el.setAttribute("stroke-width",
-                        clicked_edges.has(i) ? LENGTH.half : LENGTH.bold);
+                    el.onmouseout = () => reset_edges();
                     el.onmouseover = () => {
-                        el.setAttribute("stroke-width", LENGTH.active);
+                        if (clicked_edges.has(i)) {
+                            const E = COMP.separator_branch(FOLD, clicked_edges, i);
+                            for (const e of E) {
+                                document.getElementById(`flat_e${e}`)
+                                    .setAttribute("stroke-width", LENGTH.active);
+                            }
+                        } else {
+                            const E = E_sep[i];
+                            for (const e of E) {
+                                document.getElementById(`flat_e${e}`)
+                                    .setAttribute("stroke-width", LENGTH.active);
+                            }
+                        }
                     };
                     el.onclick = () => {
-                        clicked_edges.has(i)
-                            ? clicked_edges.delete(i)
-                            : clicked_edges.set(i, 0);
+                        if (clicked_edges.has(i)) {
+                            const E = COMP.separator_branch(FOLD, clicked_edges, i);
+                            for (const e of E) { clicked_edges.delete(e); }
+                        } else {
+                            const E = E_sep[i];
+                            for (const e of E) { clicked_edges.set(e, 1); }
+                        }
                         MAIN.update_cp(FOLD, LINE);
                     };
                 }
+                reset_edges();
             }
         }
         if (RF != undefined) {
@@ -390,7 +419,7 @@ export const MAIN = {
     draw_line_interface: (id, FS, LINE) => {
         const [FOLD, CELL] = FS[FS.length - 1];
         const {CF, Ctop} = CELL;
-        const {el, FG, clicked_groups} = LINE;
+        const {el, FG, clicked_groups, clicked_edges} = LINE;
         const Lsvg = document.getElementById("lines");
         Lsvg.appendChild(el);
         (el.onmouseout = () => STYLE.apply(el, STYLE.line_active))();
@@ -409,11 +438,15 @@ export const MAIN = {
                 MAIN.update_state(input, FOLD, CELL, LINE);
             };
             el.onclick = () => {
-                clicked_groups.has(g)
-                    ? clicked_groups.delete(g)
-                    : clicked_groups.add(g);
-                MAIN.update_cp(FOLD, LINE);
+                if (clicked_groups.has(g)) {
+                    clicked_groups.delete(g);
+                    clicked_edges.clear();
+                } else {
+                    clicked_groups.add(g);
+                }
+                MAIN.draw_cp(FOLD, LINE);
                 MAIN.update_state(input, FOLD, CELL, LINE);
+                MAIN.draw_line_interface("input", FS, LINE);
             };
         }
         for (let i = 0; i < CF.length; ++i) {

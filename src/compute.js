@@ -764,7 +764,7 @@ export const COMP = {
     },
     separators_from_edge: (i, j, FOLD, FM, EF_map, E_map, V_boundary) => {
         const {Vf, VV, FV, EV, EF, EA, H} = FOLD;
-        const E_sep = new Set();
+        const E_sep = EF.map(() => new Set());
         const f_left = EF_map.get(M.encode([i, j]));
         const f_right = EF_map.get(M.encode([j, i]));
         if ((f_left == undefined) || (!FM[f_left])) { return E_sep; }
@@ -779,7 +779,7 @@ export const COMP = {
             if (processing[v]) { return; }
             P.push(v);
             processing[v] = true;
-            if (V_boundary[v] == 3) { // bo
+            if (V_boundary[v] == 3) { // boundary vertex
                 const path = [];
                 for (let i = 1; i < P.length; ++i) {
                     const p = P[i - 1];
@@ -804,8 +804,7 @@ export const COMP = {
                         const g = EF_map.get(M.encode([a, b]));
                         if (!block.has(e) &&
                             (g != undefined) &&
-                            FM[g] &&
-                            !F_side.has(g)
+                            FM[g] && (F_side.get(g) != 0)
                         ) {
                             left.push(g);
                             F_side.set(g, 0);
@@ -823,8 +822,7 @@ export const COMP = {
                         const g = EF_map.get(M.encode([a, b]));
                         if (!block.has(e) &&
                             (g != undefined) &&
-                            FM[g] &&
-                            !F_side.has(g)
+                            FM[g] && (F_side.get(g) != 1)
                         ) {
                             right.push(g);
                             F_side.set(g, 1);
@@ -832,19 +830,27 @@ export const COMP = {
                         a = b;
                     }
                 }
+                const left_set = new Set(left);
                 let good = true;
-                for (const a of left) {
-                    for (const b of right) {
-                        const o_ = H.get(M.encode([a, b]));
-                        if ((o_ != undefined) && (o_ != o)) {
-                            good = false;
-                            break;
+                if (!left_set.has(right[0])) {
+                    for (const a of left) {
+                        for (const b of right) {
+                            const o_ = H.get(M.encode([a, b]));
+                            if ((o_ != undefined) && (o_ != o)) {
+                                good = false;
+                                break;
+                            }
                         }
+                        if (!good) { break; }
                     }
-                    if (!good) { break; }
                 }
                 if (good) {
-                    for (const e of path) { E_sep.add(e); }
+                    for (const e1 of path) {
+                        for (const e2 of path) {
+                            E_sep[e1].add(e2);
+                            E_sep[e2].add(e1);
+                        }
+                    }
                 }
             } else {
                 for (const u of VV[v]) {
@@ -861,6 +867,73 @@ export const COMP = {
         };
         dfs(j);
         return E_sep;
+    },
+    find_separators: (FOLD, FM) => {
+        const {Vf, VV, FV, EV, EF, EA, H} = FOLD;
+        const EF_map = new Map();
+        for (const [i, F] of FV.entries()) {
+            for (const [j, v1] of F.entries()) {
+                const v2 = F[(j + 1) % F.length];
+                EF_map.set(M.encode([v2, v1]), i);
+            }
+        }
+        const E_map = new Map();
+        for (let i = 0; i < EV.length; ++i) {
+            E_map.set(M.encode_order_pair(EV[i]), i);
+        }
+        const V_boundary = Vf.map(() => 0);
+        for (let i = 0; i < FM.length; ++i) {
+            const c = FM[i] ? 1 : 2;
+            for (const v of FV[i]) { V_boundary[v] |= c; }
+        }
+        for (let i = 0; i < Vf.length; ++i) {
+            for (const j of VV[i]) {
+                if (EA[E_map.get(M.encode_order_pair([i, j]))] == "B") {
+                    V_boundary[i] |= 2;
+                }
+            }
+        }
+        const E_sep = EF.map(() => new Set());
+        for (let i = 0; i < Vf.length; ++i) {
+            if (V_boundary[i] != 3) { continue; }
+            for (const j of VV[i]) {
+                const EE = COMP.separators_from_edge(
+                    i, j, FOLD, FM, EF_map, E_map, V_boundary);
+                for (let e1 = 0; e1 < EE.length; ++e1) {
+                    for (const e2 of EE[e1]) {
+                        E_sep[e1].add(e2);
+                        E_sep[e2].add(e1);
+                    }
+                }
+            }
+        }
+        return [V_boundary, E_sep];
+    },
+    separator_branch: (FOLD, clicked_edges, e) => {
+        const {VV, EV} = FOLD;
+        const EV_map = new Map();
+        for (let i = 0; i < EV.length; ++i) {
+            EV_map.set(M.encode_order_pair(EV[i]), i);
+        }
+        const seen = new Set();
+        seen.add(e);
+        const dfs = (e) => {
+            for (const u of EV[e]) {
+                const E = [];
+                for (const v of VV[u]) {
+                    const k = EV_map.get(M.encode_order_pair([u, v]));
+                    if (clicked_edges.has(k)) { E.push(k); }
+                }
+                if (E.length != 2) { continue; }
+                for (const k of E) {
+                    if (seen.has(k)) { continue; }
+                    seen.add(k);
+                    dfs(k);
+                }
+            }
+        }
+        dfs(e);
+        return seen;
     },
     draw_separators: (FOLD) => {
         const {Vf, VV, FV, EV, EF, FM, EA, H} = FOLD;
