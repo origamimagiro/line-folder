@@ -151,7 +151,7 @@ export const MAIN = {
         slider.setAttribute("max", FV.length);
         const clicked_groups = new Set();
         const clicked_edges = new Map();
-        const LINE = {el, FG, clicked_groups, clicked_edges};
+        const LINE = {el, FG, clicked_groups, clicked_edges, lfP, lfL, F_map};
         FS.push([FOLD, CELL]);
         MAIN.draw_cp(FOLD, LINE);
         MAIN.draw_state("input", FS, LINE);
@@ -179,7 +179,7 @@ export const MAIN = {
             el.onmouseover = undefined;
             el.onmouseout = undefined;
             el.onclick = undefined;
-            MAIN.make_fold(V, FOLD_.FV, FV, F_map,
+            MAIN.make_fold(FOLD_.FV, F_map,
                 FG, FOLD_.FO, clicked_groups, lfP, lfL, FS);
         };
     },
@@ -286,7 +286,7 @@ export const MAIN = {
                 }
             }
         }
-        if (FOLD.FM != undefined) {
+        if ((FOLD.FM != undefined) && (FOLD.fixed != true)) {
             const {Vf, type, EC, FR, RF, V_border, V_sink} = FOLD;
             const g = SVG.clear("notes");
             const CLS = ["", "white", "black", "gray"];
@@ -419,12 +419,115 @@ export const MAIN = {
     draw_line_interface: (id, FS, LINE) => {
         const [FOLD, CELL] = FS[FS.length - 1];
         const {CF, Ctop} = CELL;
-        const {el, FG, clicked_groups, clicked_edges} = LINE;
+        const {el, FG, clicked_groups, clicked_edges, lfP, lfL, F_map} = LINE;
         const Lsvg = document.getElementById("lines");
         Lsvg.appendChild(el);
         (el.onmouseout = () => STYLE.apply(el, STYLE.line_active))();
         el.onmouseover = () => STYLE.apply(el, STYLE.line_select);
-        el.onclick = () => { MAIN.update_interface(FS); }
+        let crease_entry = false;
+        el.onclick = () => {
+            if (clicked_groups.size > 0) {
+                const [FOLD_old, _] = FS.pop();
+                const FV_ = FS[FS.length - 1][0].FV;
+                const FO_ = FS[FS.length - 1][0].FO;
+                const {FR, V, FV} = FOLD_old;
+                const FM_ = FV.map((_, i) => clicked_groups.has(FG[i]));
+                const [Vx, Vy, FVy, FM, FOO, F_map_, FR_] =
+                    COMP.filter_clicked_and_reflect(
+                        V, FV_, FV, F_map, FM_, FO_, lfL, FR
+                );
+                const [FOLD_, CELL_] = COMP.V_FV_2_FOLD_CELL(Vx, FVy);
+                FOLD_.FO = FOO;
+                FOLD_.FM = FM;
+                FOLD_.lfL = lfL;
+                FOLD_.lfP = lfP;
+                COMP.augment_FOLD_FO(FOLD_);
+                FOLD_.fixed = true;
+                FS.push([FOLD_, CELL_]);
+                MAIN.update_interface(FS);
+            } else {
+                MAIN.update_interface(FS);
+                // if (crease_entry) {
+                //     if (clicked_edges.size == 0) {
+                //     } else {
+                //         const FM_ = Array(FOLD.FE.length).fill().map(() => false);
+                //         for (const [e, _] of clicked_edges) {
+                //             for (const f of FOLD.EF[e]) {
+                //                 if (FG[f] == 0) { continue; }
+                //                 FM_[f] = true;
+                //             }
+                //         }
+                //         const [FOLD_old, _] = FS.pop();
+                //         const FV_ = FS[FS.length - 1][0].FV;
+                //         const FO_ = FS[FS.length - 1][0].FO;
+                //         const {FR, V, FV} = FOLD_old;
+                //         const [Vx, Vy, FVy, FM, FOO, F_map_, FR_] =
+                //             COMP.filter_clicked_and_reflect(
+                //                 V, FV_, FV, F_map, FM_, FO_, lfL, FR
+                //         );
+                //         const [FOLD_, CELL_] = COMP.V_FV_2_FOLD_CELL(Vx, FVy);
+                //         FOLD_.FO = FOO;
+                //         FOLD_.FM = FM;
+                //         FOLD_.lfL = lfL;
+                //         FOLD_.lfP = lfP;
+                //         COMP.augment_FOLD_FO(FOLD_);
+                //         FOLD_.fixed = true;
+                //         FS.push([FOLD_, CELL_]);
+                //         MAIN.update_interface(FS);
+                //     }
+                // } else {
+                //     crease_entry = true;
+                //     clicked_edges.clear();
+                //     for (let i = 0; i < CF.length; ++i) {
+                //         const el = document.getElementById(`fold_c${i}`);
+                //         el.onmouseover = undefined;
+                //         el.onmouseout = undefined;
+                //         el.onclick = undefined;
+                //     }
+                //     for (let i = 0; i < FG.length; ++i) {
+                //         const el = document.getElementById(`flat_f${i}`);
+                //         el.onmouseover = undefined;
+                //         el.onmouseout = undefined;
+                //         el.onclick = undefined;
+                //     }
+                //     const restyle = () => {
+                //         for (let i = 0; i < FOLD.EV.length; ++i) {
+                //             const F = FOLD.EF[i];
+                //             if (F.length != 2) { continue; }
+                //             const [f, g] = F;
+                //             if (FG[f] == FG[g]) { continue; }
+                //             const el = document.getElementById(`flat_e${i}`);
+                //             el.setAttribute("stroke-width", clicked_edges.has(i)
+                //                 ? LENGTH.active
+                //                 : LENGTH.bold
+                //             );
+                //         }
+                //     }
+                //     restyle();
+                //     for (let i = 0; i < FOLD.EV.length; ++i) {
+                //         const F = FOLD.EF[i];
+                //         if (F.length != 2) { continue; }
+                //         const [f, g] = F;
+                //         if (FG[f] == FG[g]) { continue; }
+                //         const el = document.getElementById(`flat_e${i}`);
+                //         el.onmouseover = () => {
+                //             el.setAttribute("stroke-width", LENGTH.select);
+                //         };
+                //         el.onmouseout = () => {
+                //             restyle();
+                //         };
+                //         el.onclick = () => {
+                //             if (clicked_edges.has(i)) {
+                //                 clicked_edges.delete(i);
+                //             } else {
+                //                 clicked_edges.set(i, 1);
+                //             }
+                //             restyle();
+                //         };
+                //     }
+                // }
+            }
+        };
         const input = document.getElementById("input");
         const group_interface = (el, g) => {
             el.onmouseover = () => {
@@ -541,11 +644,12 @@ export const MAIN = {
             el.onclick = () => MAIN.line_click(el, Array.from(lfP), L[j], FS);
         }
     },
-    make_fold: (V, FV_, FV, F_map_old, FG, FO_, clicked_groups, lfP, lfL, FS) => {
+    make_fold: (FV_, F_map_old, FG, FO_, clicked_groups, lfP, lfL, FS) => {
         const [FOLD_old, _] = FS.pop();
-        const {FR} = FOLD_old;
+        const {V, FV, FR} = FOLD_old;
+        const FM_ = FV.map((_, i) => clicked_groups.has(FG[i]));
         const [Vx, Vy, FVy, FM, FOO, F_map, FR_] = COMP.filter_clicked_and_reflect(
-            V, FV_, FV, F_map_old, FG, FO_, clicked_groups, lfL, FR);
+            V, FV_, FV, F_map_old, FM_, FO_, lfL, FR);
 
         // const [FOLD_, _] = COMP.V_FV_2_FOLD_CELL(Vx, FVy);
         // FOLD_.FO = FOO;

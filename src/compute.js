@@ -142,7 +142,7 @@ export const COMP = {
         const CELL = {P, SP, SE, PP, CP, CS, SC, CF, FC, BF, BI};
         return [FOLD, CELL];
     },
-    filter_clicked_and_reflect: (V, FV_, FV, F_map_, FG, FO, clicked, line, FR_) => {
+    filter_clicked_and_reflect: (V, FV_, FV, F_map_, FM_, FO, line, FR_) => {
         // F_map_ maps uncut faces to their face indices after cutting
         // FV_ is old uncut faces, while FV is new cut faces
         // FO is old orders for uncut faces
@@ -156,8 +156,8 @@ export const COMP = {
             const F = F_map_[fi];
             if (F.length == 2) { // face was cut
                 const [f1, f2] = F;
-                const g1 = clicked.has(FG[f1]);
-                const g2 = clicked.has(FG[f2]);
+                const g1 = FM_[f1];
+                const g2 = FM_[f2];
                 if (g1 == g2) {  // same group, face was not cut
                     F_map[fi].push(FVx.length);
                     FVx.push(FV_[fi]);
@@ -174,7 +174,7 @@ export const COMP = {
                     FR.push(FR_[f2]);
                 }
             } else if (F.length == 1) { // face was not cut
-                const g1 = clicked.has(FG[F[0]]);
+                const g1 = FM_[F[0]];
                 F_map[fi].push(FVx.length);
                 FVx.push(FV_[fi]);
                 FM.push(g1);
