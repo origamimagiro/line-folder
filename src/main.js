@@ -543,9 +543,8 @@ export const MAIN = {
                 } else {
                     clicked_groups.add(g);
                 }
-                MAIN.draw_cp(FOLD, LINE);
+                MAIN.update_cp(FOLD, LINE);
                 MAIN.update_state(input, FOLD, CELL, LINE);
-                MAIN.draw_line_interface("input", FS, LINE);
             };
         }
         for (let i = 0; i < CF.length; ++i) {
@@ -703,22 +702,20 @@ export const MAIN = {
             });
         })();
         const [GB, GA] = COMP.solve(FOLD, CELL, BA0);
-        if (GB == undefined) { // failed to solve
+        NOTE.time("Solve completed");
+        const n = (GA == undefined) ? 0 : (
+            GA.reduce((s, A) => s*BigInt(A.length), BigInt(1))
+        );
+        if (n == 0) {
+            NOTE.log("   - No valid folded states found, reverting");
             MAIN.update_interface(FS);
             NOTE.end();
             return;
         }
-        const Gn = GA.map(A => A.length);
-        NOTE.time("Solve completed");
-        const n = Gn.reduce((s, gn) => s*BigInt(gn), BigInt(1));
         NOTE.count(n, "folded states");
         NOTE.lap();
-        if (n == 0) {
-            NOTE.end();
-            MAIN.update_interface(FS);
-            return;
-        }
-        const GI = GB.map(() => 0);
+        const Gn = GA.map(A => A.length);
+        const GI = GA.map(() => 0);
         const type_states = TYPE_LABEL.map(() => []);
         NOTE.time("Classifying states");
         NOTE.start_check("state", Number(n));
