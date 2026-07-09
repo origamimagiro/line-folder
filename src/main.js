@@ -101,7 +101,6 @@ export const MAIN = {
         replace_file(FS);
     },
     update_interface: (FS) => {
-        console.log(FS);
         const FOLD = FS[FS.length - 1][0];
         delete FOLD.type;
         delete FOLD.RF;
@@ -428,11 +427,11 @@ export const MAIN = {
                 const FO_ = FS[FS.length - 1][0].FO;
                 const {FR, V, FV} = FOLD_old;
                 const FM_ = FG.map(g => clicked_groups.has(g));
-                const [Vx, Vy, FVy, FM, FOO, F_map_, FR_] =
+                const [Vx, FVx, FM, FOO, F_map_, FR_] =
                     COMP.filter_clicked_and_reflect(
-                        V, FV_, FV, F_map, FM_, FO_, lfL, FR
+                        V, FV_, FV, F_map, FM_, FO_, FR
                 );
-                const [FOLD_, CELL_] = COMP.V_FV_2_FOLD_CELL(Vx, FVy);
+                const [FOLD_, CELL_] = COMP.V_FV_2_FOLD_CELL(Vx, FVx);
                 FOLD_.FO = FOO;
                 FOLD_.FR = FR_;
                 FOLD_.lfL = lfL;
@@ -647,16 +646,9 @@ export const MAIN = {
         const [FOLD_old, _] = FS.pop();
         const {V, FV, FR} = FOLD_old;
         const FM_ = FV.map((_, i) => clicked_groups.has(FG[i]));
-        const [Vx, Vy, FVy, FM, FOO, F_map, FR_] = COMP.filter_clicked_and_reflect(
-            V, FV_, FV, F_map_old, FM_, FO_, lfL, FR);
-
-        // const [FOLD_, _] = COMP.V_FV_2_FOLD_CELL(Vx, FVy);
-        // FOLD_.FO = FOO;
-        // FOLD_.FM = FM;
-        // COMP.augment_FOLD_FO(FOLD_);
-        // COMP.draw_separators(FOLD_);
-        // return;
-
+        const [Vx, FVy, FM, FOO, F_map, FR_] = COMP.filter_clicked_and_reflect(
+            V, FV_, FV, F_map_old, FM_, FO_, FR);
+        const Vy = COMP.reflect(Vx, FVy, FM, lfL);
         const [FOLD, CELL] = COMP.V_FV_2_FOLD_CELL(Vy, FVy);
         FOLD.FM = FM;
         FOLD.FOO = FOO;

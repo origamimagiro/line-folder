@@ -142,7 +142,7 @@ export const COMP = {
         const CELL = {P, SP, SE, PP, CP, CS, SC, CF, FC, BF, BI};
         return [FOLD, CELL];
     },
-    filter_clicked_and_reflect: (V, FV_, FV, F_map_, FM_, FO, line, FR_) => {
+    filter_clicked_and_reflect: (V, FV_, FV, F_map_, FM_, FO, FR_) => {
         // F_map_ maps uncut faces to their face indices after cutting
         // FV_ is old uncut faces, while FV is new cut faces
         // FO is old orders for uncut faces
@@ -202,23 +202,6 @@ export const COMP = {
             const FV_ = FVx.map(F => F.map(i => V_map[i]));
             return [V_, FV_];
         })();
-        const Vy = Vx.map(() => undefined);
-        const [u, d] = line;
-        for (let fi = 0; fi < FVy.length; ++fi) {
-            const F = FVy[fi];
-            if (!FM[fi]) { continue; }
-            for (const vi of F) {
-                if (Vy[vi] != undefined) { continue; }
-                const v = Vx[vi];
-                const d2 = M.dot(v, u) - d;
-                Vy[vi] = M.sub(v, M.mul(u, 2*d2));
-            }
-        }
-        for (let vi = 0; vi < Vy.length; ++vi) {
-            if (Vy[vi] == undefined) {
-                Vy[vi] = Vx[vi];
-            }
-        }
         const FOO = []; // old order
         for (const [f, g, o] of FO) {
             for (const f_ of F_map[f]) {
@@ -228,7 +211,27 @@ export const COMP = {
                 }
             }
         }
-        return [Vx, Vy, FVy, FM, FOO, F_map, FR];
+        return [Vx, FVy, FM, FOO, F_map, FR];
+    },
+    reflect: (V, FV, FM, line) => {
+        const out = V.map(() => undefined);
+        const [u, d] = line;
+        for (let fi = 0; fi < FV.length; ++fi) {
+            const F = FV[fi];
+            if (!FM[fi]) { continue; }
+            for (const vi of F) {
+                if (out[vi] != undefined) { continue; }
+                const v = V[vi];
+                const d2 = M.dot(v, u) - d;
+                out[vi] = M.sub(v, M.mul(u, 2*d2));
+            }
+        }
+        for (let vi = 0; vi < V.length; ++vi) {
+            if (out[vi] == undefined) {
+                out[vi] = V[vi];
+            }
+        }
+        return out;
     },
     solve: (FOLD, CELL, BA0) => {
         const {EF} = FOLD;
