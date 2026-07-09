@@ -68,8 +68,8 @@ export const MAIN = {
             };
             document.getElementById("replace").onclick = () => {
                 const [FOLD, CELL] = FS[FS.length - 1];
-                FOLD.FOO = undefined;
-                FOLD.FM = undefined;
+                delete FOLD.FOO;
+                delete FOLD.FM;
                 MAIN.update_interface(FS);
             };
             document.getElementById("flip").onchange = () => {
@@ -101,13 +101,13 @@ export const MAIN = {
         replace_file(FS);
     },
     update_interface: (FS) => {
+        console.log(FS);
         const FOLD = FS[FS.length - 1][0];
-        FOLD.type = undefined;
-        FOLD.RF = undefined;
-        FOLD.FR = undefined;
-        FOLD.V_border = undefined;
-        FOLD.V_sink = undefined;
-        FOLD.EC = undefined;
+        delete FOLD.type;
+        delete FOLD.RF;
+        delete FOLD.V_border;
+        delete FOLD.V_sink;
+        delete FOLD.EC;
         const slider = document.getElementById("slider");
         slider.style.display = "none";
         slider.value = 0;
@@ -176,9 +176,9 @@ export const MAIN = {
             document.getElementById("slider").value = 0;
             MAIN.draw_state("input", FS);
             document.getElementById("input").appendChild(line_el);
-            line_el.onmouseover = undefined;
-            line_el.onmouseout = undefined;
-            line_el.onclick = undefined;
+            delete line_el.onmouseover;
+            delete line_el.onmouseout;
+            delete line_el.onclick;
             MAIN.make_fold(FOLD_.FV, F_map,
                 FG, FOLD_.FO, clicked_groups, lfP, lfL, FS);
         };
@@ -434,7 +434,7 @@ export const MAIN = {
                 );
                 const [FOLD_, CELL_] = COMP.V_FV_2_FOLD_CELL(Vx, FVy);
                 FOLD_.FO = FOO;
-                FOLD_.FM = FM;
+                FOLD_.FR = FR_;
                 FOLD_.lfL = lfL;
                 FOLD_.lfP = lfP;
                 COMP.augment_FOLD_FO(FOLD_);
@@ -442,6 +442,10 @@ export const MAIN = {
                 FS.push([FOLD_, CELL_]);
                 MAIN.update_interface(FS);
             } else {
+                const [FOLD_, CELL_] = FS[FS.length - 1];
+                FOLD_.FR = FOLD_.FV.map(a => undefined);
+                FOLD_.lfL = lfL;
+                FOLD_.lfP = lfP;
                 MAIN.update_interface(FS);
                 // if (crease_entry) {
                 //     if (clicked_edges.size == 0) {

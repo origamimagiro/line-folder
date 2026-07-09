@@ -41,7 +41,8 @@ export const IO = {
                         frame.vertices_coords,
                         frame.faces_vertices
                     );
-                    FOLD.FR = frame["faces_lf:group"];
+                    FOLD.FR = frame["faces_lf:group"]
+                        .map(r => ((r == -1) ? undefined : r));
                     FOLD.FO = frame.faceOrders;
                     FOLD.lfL = frame["lf:line"];
                     FOLD.lfP = frame["lf:points"];
@@ -62,7 +63,7 @@ export const IO = {
                 vertices_coords:  V,
                 faces_vertices:   FV,
                 faceOrders:       FO,
-                "faces_lf:group": FR,
+                "faces_lf:group": (FR ?? FV.map(a => -1)).map(r => (r ?? -1)),
                 "lf:points":      lfP,
                 "lf:line":        lfL,
             };
