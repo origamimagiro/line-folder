@@ -77,6 +77,7 @@ export const MAIN = {
                 if (!FS[FS.length - 1][0].fixed) { FS.pop(); }
                 const [FOLD, CELL] = FS[FS.length - 1];
                 MAIN.draw_cp(FOLD);
+                MAIN.update_cp(FOLD);
                 MAIN.draw_state((FOLD.FM == undefined) ? "input" : "output", FS);
                 NOTE.end();
             };
@@ -119,6 +120,7 @@ export const MAIN = {
         NOTE.time("Drawing State");
         SVG.clear("output");
         MAIN.draw_cp(FOLD);
+        MAIN.update_cp(FOLD);
         MAIN.draw_state("input", FS);
         NOTE.end();
     },
@@ -135,9 +137,8 @@ export const MAIN = {
         const g2 = SVG.append("g", cp, {id: "flat_e"});
         SVG.draw_segments(g2, lines, {stroke: colors, id: true});
         SVG.append("g", cp, {id: "notes"});
-        MAIN.update_cp(FOLD, LINE);
     },
-    line_click: (el, lfP, lfL, FS) => {
+    line_click: (line_el, lfP, lfL, FS) => {
         const [FOLD_, CELL_] = FS[FS.length - 1];
         const [FV, V, Vf, VD, F_map] = COMP.split_FOLD_on_line(FOLD_, lfL);
         const [FOLD, CELL] = COMP.V_FV_2_FOLD_CELL(V, FV); // fully divided
@@ -151,9 +152,10 @@ export const MAIN = {
         slider.setAttribute("max", FV.length);
         const clicked_groups = new Set();
         const clicked_edges = new Map();
-        const LINE = {el, FG, clicked_groups, clicked_edges, lfP, lfL, F_map};
+        const LINE = {line_el, FG, clicked_groups, clicked_edges, lfP, lfL, F_map};
         FS.push([FOLD, CELL]);
         MAIN.draw_cp(FOLD, LINE);
+        MAIN.update_cp(FOLD, LINE);
         MAIN.draw_state("input", FS, LINE);
         const fold_button = document.getElementById("fold_button");
         fold_button.style.display = "inline";
@@ -175,10 +177,10 @@ export const MAIN = {
             SVG.clear("input");
             document.getElementById("slider").value = 0;
             MAIN.draw_state("input", FS);
-            document.getElementById("input").appendChild(el);
-            el.onmouseover = undefined;
-            el.onmouseout = undefined;
-            el.onclick = undefined;
+            document.getElementById("input").appendChild(line_el);
+            line_el.onmouseover = undefined;
+            line_el.onmouseout = undefined;
+            line_el.onclick = undefined;
             MAIN.make_fold(FOLD_.FV, F_map,
                 FG, FOLD_.FO, clicked_groups, lfP, lfL, FS);
         };
@@ -217,10 +219,7 @@ export const MAIN = {
             for (const [e, _] of clicked_edges) {
                 HC.add(M.encode_order_pair(EF[e]));
             }
-            [FR, RF] = COMP.EF_FM_HC_2_FR_RF(EF, FM, HC);
-            FOLD.FR = FR;
-            FOLD.RF = RF;
-            const FM = FOLD.FM;
+            [FOLD.FR, FOLD.RF] = COMP.EF_FM_HC_2_FR_RF(EF, FM, HC);
             if (mode == "select") {
                 const [V_boundary, E_sep] = COMP.find_separators(FOLD, FM);
                 const reset_edges = () => {
@@ -271,15 +270,15 @@ export const MAIN = {
                 reset_edges();
             }
         }
-        if (RF != undefined) {
-            for (let i = 0; i < RF.length; ++i) {
+        if (FOLD.RF != undefined) {
+            for (let i = 0; i < FOLD.RF.length; ++i) {
                 const hue = (i*139) % 360; // Approx Golden Angle Method
-                const g = FG[RF[i][0]];
+                const g = FG[FOLD.RF[i][0]];
                 const color = ((FOLD.FOO == undefined) && (mode == "all")) ? (
                         (over_group == g) ? COLOR.face.select : COLOR.face.active
                     ) : `hsl(${hue}, ${(FOLD.type == TYPE.COMPLEX) ? 30 : 100
                 }%, 85%)`;
-                for (const f of RF[i]) {
+                for (const f of FOLD.RF[i]) {
                     const el = document.getElementById(`flat_f${f}`);
                     el.setAttribute("fill", color);
                 }
@@ -418,13 +417,13 @@ export const MAIN = {
     draw_line_interface: (id, FS, LINE) => {
         const [FOLD, CELL] = FS[FS.length - 1];
         const {CF, Ctop} = CELL;
-        const {el, FG, clicked_groups, clicked_edges, lfP, lfL, F_map} = LINE;
+        const {line_el, FG, clicked_groups, clicked_edges, lfP, lfL, F_map} = LINE;
         const Lsvg = document.getElementById("lines");
-        Lsvg.appendChild(el);
-        (el.onmouseout = () => STYLE.apply(el, STYLE.line_active))();
-        el.onmouseover = () => STYLE.apply(el, STYLE.line_select);
+        Lsvg.appendChild(line_el);
+        (line_el.onmouseout = () => STYLE.apply(line_el, STYLE.line_active))();
+        line_el.onmouseover = () => STYLE.apply(line_el, STYLE.line_select);
         let crease_entry = false;
-        el.onclick = () => {
+        line_el.onclick = () => {
             if (clicked_groups.size > 0) {
                 const [FOLD_old, _] = FS.pop();
                 const FV_ = FS[FS.length - 1][0].FV;
@@ -547,6 +546,7 @@ export const MAIN = {
                     clicked_groups.add(g);
                 }
                 MAIN.draw_cp(FOLD, LINE);
+                MAIN.update_cp(FOLD, LINE);
                 MAIN.update_state(input, FOLD, CELL, LINE);
                 MAIN.draw_line_interface("input", FS, LINE);
             };
@@ -808,6 +808,7 @@ export const MAIN = {
         compute_state();
         MAIN.draw_state("output", FS);
         MAIN.draw_cp(FOLD);
+        MAIN.update_cp(FOLD);
         state_select.onchange = () => {
             compute_state();
             MAIN.draw_state("output", FS);
