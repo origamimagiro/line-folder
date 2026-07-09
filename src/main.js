@@ -210,8 +210,6 @@ export const MAIN = {
             el.setAttribute("stroke-width",
                 (FG[f] == FG[g]) ? LENGTH.normal : LENGTH.half);
         }
-        let FR = FOLD.FR;
-        let RF = FOLD.RF;
         const mode = document.getElementById("mode_select").value;
         if (LINE != undefined) {
             const FM = FG.map(g => clicked_groups.has(g));
@@ -222,6 +220,7 @@ export const MAIN = {
             [FR, RF] = COMP.EF_FM_HC_2_FR_RF(EF, FM, HC);
             FOLD.FR = FR;
             FOLD.RF = RF;
+            const FM = FOLD.FM;
             if (mode == "select") {
                 const [V_boundary, E_sep] = COMP.find_separators(FOLD, FM);
                 const reset_edges = () => {
@@ -287,7 +286,7 @@ export const MAIN = {
             }
         }
         if ((FOLD.FM != undefined) && (FOLD.fixed != true)) {
-            const {Vf, type, EC, FR, RF, V_border, V_sink} = FOLD;
+            const {Vf, type, EC, V_border, V_sink} = FOLD;
             const g = SVG.clear("notes");
             const CLS = ["", "white", "black", "gray"];
             if (V_sink.length > 0) {
@@ -431,7 +430,7 @@ export const MAIN = {
                 const FV_ = FS[FS.length - 1][0].FV;
                 const FO_ = FS[FS.length - 1][0].FO;
                 const {FR, V, FV} = FOLD_old;
-                const FM_ = FV.map((_, i) => clicked_groups.has(FG[i]));
+                const FM_ = FG.map(g => clicked_groups.has(g));
                 const [Vx, Vy, FVy, FM, FOO, F_map_, FR_] =
                     COMP.filter_clicked_and_reflect(
                         V, FV_, FV, F_map, FM_, FO_, lfL, FR
