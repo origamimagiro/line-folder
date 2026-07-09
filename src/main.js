@@ -77,7 +77,6 @@ export const MAIN = {
                 if (!FS[FS.length - 1][0].fixed) { FS.pop(); }
                 const [FOLD, CELL] = FS[FS.length - 1];
                 MAIN.draw_cp(FOLD);
-                MAIN.update_cp(FOLD);
                 MAIN.draw_state((FOLD.FM == undefined) ? "input" : "output", FS);
                 NOTE.end();
             };
@@ -102,7 +101,7 @@ export const MAIN = {
         replace_file(FS);
     },
     update_interface: (FS) => {
-        const [FOLD, CELL] = FS[FS.length - 1];
+        const FOLD = FS[FS.length - 1][0];
         FOLD.type = undefined;
         FOLD.RF = undefined;
         FOLD.FR = undefined;
@@ -120,7 +119,6 @@ export const MAIN = {
         NOTE.time("Drawing State");
         SVG.clear("output");
         MAIN.draw_cp(FOLD);
-        MAIN.update_cp(FOLD);
         MAIN.draw_state("input", FS);
         NOTE.end();
     },
@@ -137,6 +135,7 @@ export const MAIN = {
         const g2 = SVG.append("g", cp, {id: "flat_e"});
         SVG.draw_segments(g2, lines, {stroke: colors, id: true});
         SVG.append("g", cp, {id: "notes"});
+        MAIN.update_cp(FOLD, LINE);
     },
     line_click: (line_el, lfP, lfL, FS) => {
         const [FOLD_, CELL_] = FS[FS.length - 1];
@@ -155,7 +154,6 @@ export const MAIN = {
         const LINE = {line_el, FG, clicked_groups, clicked_edges, lfP, lfL, F_map};
         FS.push([FOLD, CELL]);
         MAIN.draw_cp(FOLD, LINE);
-        MAIN.update_cp(FOLD, LINE);
         MAIN.draw_state("input", FS, LINE);
         const fold_button = document.getElementById("fold_button");
         fold_button.style.display = "inline";
@@ -546,7 +544,6 @@ export const MAIN = {
                     clicked_groups.add(g);
                 }
                 MAIN.draw_cp(FOLD, LINE);
-                MAIN.update_cp(FOLD, LINE);
                 MAIN.update_state(input, FOLD, CELL, LINE);
                 MAIN.draw_line_interface("input", FS, LINE);
             };
@@ -808,7 +805,6 @@ export const MAIN = {
         compute_state();
         MAIN.draw_state("output", FS);
         MAIN.draw_cp(FOLD);
-        MAIN.update_cp(FOLD);
         state_select.onchange = () => {
             compute_state();
             MAIN.draw_state("output", FS);
